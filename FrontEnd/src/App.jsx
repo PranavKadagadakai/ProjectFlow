@@ -1,8 +1,8 @@
-// FrontEnd/src/App.jsx (Updated to use Bootstrap classes, removing inline styles)
 import React, { useState, useEffect } from "react";
 import useAuth from "./hooks/useAuth"; // Import the custom useAuth hook
 import api from "./api/api"; // Import the configured Axios instance
 import { useNavigate } from "react-router-dom"; // For programmatic navigation
+import SubmissionForm from "./components/SubmissionForm"; // Import the new component
 
 function App() {
   const { user, isAuthenticated, loading, signOut, signIn, signUp } = useAuth();
@@ -21,11 +21,11 @@ function App() {
     if (!loading && !isAuthenticated) {
       console.log("User not authenticated, please sign in.");
       // Optionally redirect to /login if you have a separate login route
-      // navigate('/login');
+      // navigate("/login");
     } else if (!loading && isAuthenticated) {
       console.log("User is authenticated:", user);
       // Optionally navigate to a dashboard or protected page after successful login
-      // navigate('/dashboard');
+      // navigate("/dashboard");
     }
   }, [loading, isAuthenticated, user, navigate]);
 
@@ -115,6 +115,13 @@ function App() {
             </button>
             <button className="btn btn-outline-danger" onClick={signOut}>
               Sign Out
+            </button>
+            {/* Link to the new submission form */}
+            <button
+              className="btn btn-info mt-3"
+              onClick={() => navigate("/submit-project")}
+            >
+              Go to Submission Form
             </button>
           </div>
         </header>

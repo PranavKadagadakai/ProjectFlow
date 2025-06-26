@@ -1,17 +1,19 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from django.db.models import Sum, F
+from django.conf import settings # Import settings
 from .models import Project, Submission, Rubric, Evaluation
 from .serializers import (
     ProjectSerializer, SubmissionSerializer, RubricSerializer, EvaluationSerializer, UserSerializer
 )
+from .utils import send_email_ses # Import the email utility
 
 class ProtectedAPI(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request):
-        content = {'message': 'Hello, World!'}
+        content = {'message': f'Hello, {request.user.username}! This is a protected API endpoint.'}
         return Response(content)
     
 class HomeView(APIView):
@@ -26,10 +28,12 @@ class ProjectListCreateView(generics.ListCreateAPIView):
     """
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
-    permission_classes = [permissions.IsAuthenticated] # Only authenticated users can access
+    permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        # The 'created_by' field is automatically set to the authenticated user.
+        # Ensure only staff (faculty) can create projects
+        if not self.request.user.is_staff:
+            raise permissions.PermissionDenied("Only faculty members can create projects.")
         serializer.save(created_by=self.request.user)
 
 class ProjectDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -58,20 +62,46 @@ class SubmissionListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         # Students see only their own submissions
-        if hasattr(self.request.user, 'is_staff') and self.request.user.is_staff: # Assuming faculty are staff
+        if self.request.user.is_staff: # Assuming faculty are staff
             return Submission.objects.all()
         return Submission.objects.filter(student=self.request.user)
 
     def perform_create(self, serializer):
-        # Ensure the student submitting is the authenticated user
-        # Also ensure submission is within the project's active period
         project = serializer.validated_data['project']
+
+        # Check if project is active for submissions
         if not project.is_active:
             raise exceptions.ValidationError({"detail": "This project is not active for submissions."})
-        if self.request.user in [sub.student for sub in project.submissions.all()]:
+        
+        # Check if student has already submitted for this project
+        if Submission.objects.filter(project=project, student=self.request.user).exists():
              raise exceptions.ValidationError({"detail": "You have already submitted for this project."})
         
-        serializer.save(student=self.request.user)
+        # Save the submission
+        submission = serializer.save(student=self.request.user)
+
+        # Send confirmation email via SES
+        if settings.AWS_SES_SOURCE_EMAIL and self.request.user.email:
+            subject = f"Project Submission Confirmation: {submission.project.title}"
+            body_text = (
+                f"Dear {self.request.user.username},\n\n"
+                f"Your submission for the project '{submission.project.title}' has been successfully received.\n"
+                f"Submission ID: {submission.id}\n"
+                f"Submitted at: {submission.submitted_at}\n\n"
+                "Thank you!"
+            )
+            body_html = f"""
+            <html>
+                <body>
+                    <p>Dear {self.request.user.username},</p>
+                    <p>Your submission for the project '<strong>{submission.project.title}</strong>' has been successfully received.</p>
+                    <p>Submission ID: {submission.id}</p>
+                    <p>Submitted at: {submission.submitted_at}</p>
+                    <p>Thank you!</p>
+                </body>
+            </html>
+            """
+            send_email_ses(self.request.user.email, subject, body_text, body_html)
 
 class SubmissionDetailView(generics.RetrieveAPIView):
     """
@@ -83,7 +113,7 @@ class SubmissionDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        if hasattr(self.request.user, 'is_staff') and self.request.user.is_staff:
+        if self.request.user.is_staff:
             return Submission.objects.all()
         return Submission.objects.filter(student=self.request.user)
 
@@ -100,12 +130,12 @@ class RubricListCreateView(generics.ListCreateAPIView):
         project_id = self.kwargs.get('project_pk') # Get project ID from URL
         if project_id:
             return Rubric.objects.filter(project_id=project_id)
-        return Rubric.objects.all()
+        return Rubric.objects.none() # Rubrics are always tied to a project
 
     def perform_create(self, serializer):
         project = serializer.validated_data['project']
-        # Ensure only the project owner can add rubrics to it
-        if project.created_by != self.request.user:
+        # Ensure only the project owner (faculty) can add rubrics to it
+        if not self.request.user.is_staff or project.created_by != self.request.user:
             raise permissions.PermissionDenied("You do not have permission to add rubrics to this project.")
         serializer.save()
 
@@ -122,27 +152,23 @@ class EvaluationListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         submission_id = self.kwargs.get('submission_pk')
         if submission_id:
-            # If a submission ID is provided, filter evaluations for that submission
-            if hasattr(self.request.user, 'is_staff') and self.request.user.is_staff:
+            if self.request.user.is_staff:
                 return Evaluation.objects.filter(submission_id=submission_id)
             else:
-                # Students can only see evaluations for their own submissions
                 return Evaluation.objects.filter(submission_id=submission_id, submission__student=self.request.user)
         
-        # If no submission ID, faculty can see all evaluations, students see none
-        if hasattr(self.request.user, 'is_staff') and self.request.user.is_staff:
+        if self.request.user.is_staff:
             return Evaluation.objects.all()
-        return Evaluation.objects.none() # Students shouldn't see all evaluations
+        return Evaluation.objects.none()
 
     def perform_create(self, serializer):
-        submission = serializer.validated_data['submission']
         # Ensure only faculty can evaluate
-        if not (hasattr(self.request.user, 'is_staff') and self.request.user.is_staff):
+        if not self.request.user.is_staff:
             raise permissions.PermissionDenied("Only faculty can create evaluations.")
         
-        # Ensure faculty is evaluating a valid submission
-        if not submission: # Or check if submission exists for a valid project etc.
-            raise exceptions.ValidationError({"detail": "Invalid submission."})
+        submission = serializer.validated_data['submission']
+        # You might add checks here to ensure the evaluation is for a valid submission
+        # and that the faculty member is authorized to evaluate this specific project/submission.
 
         serializer.save(evaluated_by=self.request.user)
 

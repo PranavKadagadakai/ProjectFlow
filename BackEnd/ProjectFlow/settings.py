@@ -27,7 +27,10 @@ SECRET_KEY = 'django-insecure-x$$wxzj&v29$(41cd)io@6#q^xjr1t8a8bsjv940=@h!uq@90o
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'localhost',
+]
 
 # Load environment variables from .env file
 dotenv_path = BASE_DIR / '.env'
@@ -44,14 +47,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
-    'Proj',
     'rest_framework',
+    'storages',
+    'Proj',
 ]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    # 'Proj.middleware.CognitoAuthenticationMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -136,41 +139,75 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'Proj.authentication.CognitoAuthentication',
+        'Proj.authentication.CognitoAuthentication', # Custom Cognito authentication class
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.IsAuthenticated', # Default to authenticated access
     ),
-    'DEFAULT_PARSER_CLASSES': [ # Add this for file uploads
+    'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
-        'rest_framework.parsers.FileUploadParser',
-        'rest_framework.parsers.MultiPartParser',
-        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.FileUploadParser', # For file uploads
+        'rest_framework.parsers.MultiPartParser',   # For form data with files
+        'rest_framework.parsers.FormParser',        # For form data
     ],
 }
-
-# AWS Cognito
-COGNITO_REGION = os.getenv('AWS_COGNITO_REGION', 'us-east-1')  # Default to us-east-1 if not set
-COGNITO_USER_POOL_ID = os.getenv('AWS_COGNITO_USER_POOL_ID')
-COGNITO_APP_CLIENT_ID = os.getenv('AWS_COGNITO_APP_CLIENT_ID')
-COGNITO_JWT_HEADER_NAME = 'HTTP_AUTHORIZATION'
-COGNITO_JWT_TOKEN_TYPE = 'Bearer'
-
-STATIC_URL = '/static/'
-# STATICFILES_DIRS = [BASE_DIR / 'frontend/build/static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
-CORS_ALLOW_CREDENTIALS = True  # Allow cookies to be sent with CORS requests
+
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_HEADERS = [
     'accept',
-    'authorization', # Allow the Authorization header
+    'authorization',
     'content-type',
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
 ]
+
+# AWS Cognito
+COGNITO_REGION = os.getenv('AWS_COGNITO_REGION', 'us-east-1')
+COGNITO_USER_POOL_ID = os.getenv('AWS_COGNITO_USER_POOL_ID')
+COGNITO_APP_CLIENT_ID = os.getenv('AWS_COGNITO_APP_CLIENT_ID')
+
+# AWS S3 Settings for django-storages
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', COGNITO_REGION) # Use Cognito region as default for S3
+
+# Configure default file storage to S3Boto3Storage
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+PUBLIC_MEDIA_LOCATION = 'media/public' # Optional: for public files
+MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/{PUBLIC_MEDIA_LOCATION}/'
+STORAGES = { # For Django 4.2+
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {
+            "location": PUBLIC_MEDIA_LOCATION,
+        },
+    },
+    "staticfiles": { # If you also want to serve static files from S3
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {
+            "location": "static",
+        },
+    },
+}
+
+# For older Django versions or simplified setup, just using DEFAULT_FILE_STORAGE is fine.
+# Media files will be uploaded to the root of the specified S3 bucket
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # Django needs a MEDIA_ROOT defined, even if using S3
+
+
+# AWS SES Settings
+AWS_SES_REGION_NAME = os.getenv('AWS_SES_REGION_NAME', COGNITO_REGION)
+AWS_SES_SOURCE_EMAIL = os.getenv('AWS_SES_SOURCE_EMAIL') # Verified email address in SES
+
+STATIC_URL = '/static/'
+# STATICFILES_DIRS = [BASE_DIR / 'frontend/build/static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
