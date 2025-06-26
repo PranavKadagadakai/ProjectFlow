@@ -1,4 +1,3 @@
-// FrontEnd/src/contexts/AuthContext.jsx
 import React, { createContext, useState, useEffect, useContext } from "react";
 import {
   fetchAuthSession,
