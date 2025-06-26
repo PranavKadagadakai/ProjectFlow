@@ -1,12 +1,15 @@
-from django.http import JsonResponse
-from django.views import View
-from django.shortcuts import render
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 
-class HomeView(View):
-    def get(self, request):
-        return render(request, 'index.html')  # Serve React app
+class ProtectedAPI(APIView):
+    permission_classes = (IsAuthenticated,)
 
-class ProtectedAPI(View):
     def get(self, request):
-        user = getattr(request, 'cognito_user', None)
-        return JsonResponse({'message': 'Protected data', 'user': user})
+        content = {'message': 'Hello, World!'}
+        return Response(content)
+    
+class HomeView(APIView):
+    def get(self, request):
+        content = {'message': 'Welcome to the Home Page!'}
+        return Response(content)

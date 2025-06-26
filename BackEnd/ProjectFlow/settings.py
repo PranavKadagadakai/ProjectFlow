@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -28,6 +29,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+# Load environment variables from .env file
+dotenv_path = BASE_DIR / '.env'
+if dotenv_path.exists():
+    load_dotenv(dotenv_path)
 
 # Application definition
 
@@ -40,12 +45,13 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'Proj',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'Proj.middleware.CognitoAuthenticationMiddleware',
+    # 'Proj.middleware.CognitoAuthenticationMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -127,17 +133,38 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 ## MANUAL SETTINGS
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'Proj.authentication.CognitoAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
+
 # AWS Cognito
-AWS_COGNITO_REGION = 'us-east-1'
-AWS_COGNITO_USER_POOL_ID = 'us-east-1_3n8Ks0Wn9'
-AWS_COGNITO_APP_CLIENT_ID = '3n6njlt41hg3dpr9ctspbattl4'
-AWS_COGNITO_JWT_HEADER_NAME = 'HTTP_AUTHORIZATION'
-AWS_COGNITO_JWT_TOKEN_TYPE = 'Bearer'
+COGNITO_REGION = os.getenv('AWS_COGNITO_REGION', 'us-east-1')  # Default to us-east-1 if not set
+COGNITO_USER_POOL_ID = os.getenv('AWS_COGNITO_USER_POOL_ID')
+COGNITO_APP_CLIENT_ID = os.getenv('AWS_COGNITO_APP_CLIENT_ID')
+COGNITO_JWT_HEADER_NAME = 'HTTP_AUTHORIZATION'
+COGNITO_JWT_TOKEN_TYPE = 'Bearer'
 
 STATIC_URL = '/static/'
 # STATICFILES_DIRS = [BASE_DIR / 'frontend/build/static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # During development
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+CORS_ALLOW_CREDENTIALS = True  # Allow cookies to be sent with CORS requests
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'authorization', # Allow the Authorization header
+    'content-type',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
 ]
