@@ -5,7 +5,7 @@ from rest_framework.exceptions import ValidationError, NotFound
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from pynamodb.exceptions import DoesNotExist, GetError, ScanError, QueryError, PutError, DeleteError
-from django.core.cache import cache
+from django.core.cache import cache # Ensure Django cache is configured in settings if used here
 
 from .models import ProjectModel, SubmissionModel, RubricModel, EvaluationModel
 from .serializers import (
@@ -13,6 +13,7 @@ from .serializers import (
 )
 from .utils import send_email_ses
 from datetime import date # Import date for comparison
+from django.utils import timezone # For timezone-aware datetimes
 
 User = get_user_model() # Django's User model (still relational)
 
@@ -38,7 +39,6 @@ class ProjectListCreateView(APIView):
 
     def get(self, request, *args, **kwargs):
         try:
-            # For simplicity, scanning all projects. In production, consider pagination or specific queries.
             projects = list(ProjectModel.scan())
             serializer = ProjectSerializer(projects, many=True)
             return Response(serializer.data)
@@ -90,6 +90,8 @@ class ProjectDetailView(APIView):
         serializer = ProjectSerializer(project, data=request.data, partial=False)
         serializer.is_valid(raise_exception=True)
         try:
+            # Ensure updated_at is set for updates
+            serializer.validated_data['updated_at'] = timezone.now()
             updated_project = serializer.save()
             return Response(ProjectSerializer(updated_project).data)
         except PutError as e:
@@ -119,7 +121,8 @@ class SubmissionListCreateView(APIView):
             if request.user.is_staff:
                 submissions = list(SubmissionModel.scan()) # Faculty see all
             else:
-                # Students see only their own submissions using StudentIndex GSI
+                # Students see only their own submissions using StudentIndex GSI for efficiency
+                # StudentIndex has student_username as hash_key
                 submissions = list(SubmissionModel.StudentIndex.query(request.user.username))
 
             serializer = SubmissionSerializer(submissions, many=True)
@@ -147,8 +150,7 @@ class SubmissionListCreateView(APIView):
             raise ValidationError({"detail": "This project is not active for submissions."})
         
         # Check if student has already submitted for this project using GSI
-        # Query the GSI using project_id as hash_key and student_username as range_key
-        # Limit to 1 to check for existence efficiently
+        # Query the ProjectStudentIndex GSI using project_id as hash_key and student_username as range_key
         existing_submissions = list(SubmissionModel.ProjectStudentIndex.query(
             hash_key=project_id,
             range_key_condition=SubmissionModel.ProjectStudentIndex.student_username == request.user.username,
@@ -179,7 +181,7 @@ class SubmissionListCreateView(APIView):
                         <p>Your submission for the project '<strong>{project.title}</strong>' has been successfully received.</p>
                         <p>Submission ID: {submission.submission_id}</p>
                         <p>Submitted at: {submission.submitted_at}</p>
-                        <p>Thanks.</p>
+                        <p>Thank you!</p>
                     </body>
                 </html>
                 """
@@ -208,9 +210,12 @@ class SubmissionDetailView(APIView):
             raise NotFound(detail="Submission not found.")
         except GetError as e:
             raise ValidationError(f"Error fetching submission: {e}")
-        submission = self.get_object(pk, request)
-        serializer = SubmissionSerializer(submission)
-        return Response(serializer.data)
+    # Remove the redundant get method here. It should only be one `get` method per view class.
+    # The get_object method is for internal use to retrieve the instance.
+    # def get(self, request, pk, *args, **kwargs):
+    #     submission = self.get_object(pk, request)
+    #     serializer = SubmissionSerializer(submission)
+    #     return Response(serializer.data)
 
 
 class RubricListCreateView(APIView):
@@ -386,3 +391,4 @@ class LeaderboardView(APIView):
             return Response(leaderboard_data)
         except (ScanError, QueryError) as e:
             return Response({"detail": f"Error generating leaderboard: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

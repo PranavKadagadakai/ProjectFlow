@@ -1,199 +1,116 @@
-import React, { useState, useEffect } from "react";
-import useAuth from "./hooks/useAuth"; // Import the custom useAuth hook
-import api from "./api/api"; // Import the configured Axios instance
-import { useNavigate } from "react-router-dom"; // For programmatic navigation
-import SubmissionForm from "./components/SubmissionForm"; // Import the new component
+import React, { useEffect } from "react";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import useAuth from "./hooks/useAuth";
+import Navbar from "./components/Navbar"; // Import the new Navbar
+import ProtectedRoute from "./routes/ProtectedRoute"; // Your existing ProtectedRoute
+
+// Public Pages
+import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+
+// Protected Pages (Common for both roles, but require authentication)
+import LeaderboardPage from "./pages/LeaderboardPage";
+import SubmitProjectPage from "./pages/SubmitProjectPage";
+import ProjectResultsPage from "./pages/ProjectResultsPage";
+
+// Protected Pages (Student Specific)
+import StudentDashboard from "./pages/StudentDashboard";
+import StudentProfile from "./pages/StudentProfile";
+import EditStudentProfile from "./pages/EditStudentProfile";
+
+// Protected Pages (Faculty Specific)
+import FacultyDashboard from "./pages/FacultyDashboard";
+import CreateProjectPage from "./pages/CreateProjectPage";
+import FacultySubmissionsView from "./pages/FacultySubmissionsView";
+import EvaluateSubmissionPage from "./pages/EvaluateSubmissionPage";
+import ProjectRubricsPage from "./pages/ProjectRubricsPage";
+import CreateRubricPage from "./pages/CreateRubricPage";
 
 function App() {
-  const { user, isAuthenticated, loading, signOut, signIn, signUp } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [apiMessage, setApiMessage] = useState(
-    "Click the button to call the protected API."
-  );
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [email, setEmail] = useState("");
-  const [isSignUpMode, setIsSignUpMode] = useState(false);
-  const [authError, setAuthError] = useState(null);
-
+  // Redirect authenticated users trying to access public pages to their respective dashboards
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      console.log("User not authenticated, please sign in.");
-      // Optionally redirect to /login if you have a separate login route
-      // navigate("/login");
-    } else if (!loading && isAuthenticated) {
-      console.log("User is authenticated:", user);
-      // Optionally navigate to a dashboard or protected page after successful login
-      // navigate("/dashboard");
-    }
-  }, [loading, isAuthenticated, user, navigate]);
-
-  const handleLoginSubmit = async (e) => {
-    e.preventDefault();
-    setAuthError(null);
-    try {
-      const result = await signIn(username, password);
-      if (result.isSignedIn) {
-        console.log("Sign in successful!");
-      } else {
-        console.log("Next step in sign-in process:", result.nextStep);
-        setAuthError(
-          `Sign-in requires next step: ${result.nextStep.signInStep}`
-        );
-      }
-    } catch (error) {
-      console.error("Login error:", error);
-      setAuthError(
-        error.message || "An unknown error occurred during sign-in."
-      );
-    }
-  };
-
-  const handleSignUpSubmit = async (e) => {
-    e.preventDefault();
-    setAuthError(null);
-    try {
-      const result = await signUp(username, password, email);
-      if (result.isSignUpComplete) {
-        console.log("Sign up complete! Please sign in.");
-        setIsSignUpMode(false);
-        setUsername("");
-        setPassword("");
-        setEmail("");
-      } else {
-        console.log("Next step in sign-up process:", result.nextStep);
-        setAuthError(
-          `Sign-up requires next step: ${result.nextStep.signUpStep}`
-        );
-      }
-    } catch (error) {
-      console.error("Sign up error:", error);
-      setAuthError(
-        error.message || "An unknown error occurred during sign-up."
-      );
-    }
-  };
-
-  async function callApi() {
-    setApiMessage("Calling API...");
-    try {
-      const response = await api.get("/api/protected/");
-      console.log("API Response:", response.data);
-      setApiMessage(response.data.message || "Successfully fetched data!");
-    } catch (error) {
-      console.error("Error calling API:", error);
-      setApiMessage(`Error calling API: ${error.message}`);
-      if (
-        error.response &&
-        (error.response.status === 401 || error.response.status === 403)
-      ) {
-        setApiMessage(
-          "Authentication required or token expired. Please sign in."
-        );
+    if (!loading && isAuthenticated) {
+      const publicPaths = ["/", "/login", "/register"];
+      if (publicPaths.includes(location.pathname)) {
+        if (user?.is_staff) {
+          navigate("/faculty-dashboard", { replace: true });
+        } else {
+          navigate("/student-dashboard", { replace: true });
+        }
       }
     }
-  }
+  }, [loading, isAuthenticated, user, navigate, location.pathname]);
 
   if (loading) {
+    // Show a global loading spinner while authentication state is being determined
     return (
       <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
-        <h2 className="text-dark">Loading...</h2>
+        <h2 className="text-dark">Loading authentication...</h2>
       </div>
     );
   }
 
   return (
-    <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
-      {isAuthenticated ? (
-        <header className="card shadow-sm p-4 rounded text-center bg-white">
-          <h1 className="mb-3 text-dark">Welcome, {user.username}!</h1>
-          <p className="alert alert-info my-3">{apiMessage}</p>
-          <div className="d-grid gap-2 col-6 mx-auto mt-4">
-            <button className="btn btn-primary" onClick={callApi}>
-              Call Protected API
-            </button>
-            <button className="btn btn-outline-danger" onClick={signOut}>
-              Sign Out
-            </button>
-            {/* Link to the new submission form */}
-            <button
-              className="btn btn-info mt-3"
-              onClick={() => navigate("/submit-project")}
-            >
-              Go to Submission Form
-            </button>
-          </div>
-        </header>
-      ) : (
-        <div
-          className="card shadow-sm p-4 rounded text-center bg-white"
-          style={{ maxWidth: "400px", width: "90%" }}
-        >
-          <h2 className="mb-4 text-dark">
-            {isSignUpMode ? "Create Account" : "Sign In"}
-          </h2>
-          {authError && (
-            <div className="alert alert-danger" role="alert">
-              {authError}
-            </div>
-          )}
-          <form
-            onSubmit={isSignUpMode ? handleSignUpSubmit : handleLoginSubmit}
-          >
-            <div className="mb-3">
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
-            </div>
-            <div className="mb-3">
-              <input
-                type="password"
-                className="form-control"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            {isSignUpMode && (
-              <div className="mb-3">
-                <input
-                  type="email"
-                  className="form-control"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-            )}
-            <div className="d-grid gap-2">
-              <button type="submit" className="btn btn-primary">
-                {isSignUpMode ? "Sign Up" : "Sign In"}
-              </button>
-            </div>
-          </form>
-          <p className="mt-3 text-muted">
-            {isSignUpMode
-              ? "Already have an account?"
-              : "Don't have an account?"}{" "}
-            <button
-              type="button"
-              className="btn btn-link p-0 border-0"
-              onClick={() => setIsSignUpMode(!isSignUpMode)}
-            >
-              {isSignUpMode ? "Sign In" : "Sign Up"}
-            </button>
-          </p>
-        </div>
-      )}
-    </div>
+    <>
+      <Navbar /> {/* Navbar is rendered on all pages */}
+      <div className="content-wrapper">
+        {" "}
+        {/* Main content area for all pages */}
+        <Routes>
+          {/* Public Routes (accessible to anyone) */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+
+          {/* Common Protected Routes (require any authenticated user) */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/submit-project" element={<SubmitProjectPage />} />
+            <Route
+              path="/project-results/:submissionId"
+              element={<ProjectResultsPage />}
+            />
+          </Route>
+
+          {/* Student Specific Protected Routes (require authenticated student) */}
+          <Route element={<ProtectedRoute requiredRole="student" />}>
+            <Route path="/student-dashboard" element={<StudentDashboard />} />
+            <Route path="/student-profile" element={<StudentProfile />} />
+            <Route
+              path="/edit-student-profile"
+              element={<EditStudentProfile />}
+            />
+          </Route>
+
+          {/* Faculty Specific Protected Routes (require authenticated faculty) */}
+          <Route element={<ProtectedRoute requiredRole="faculty" />}>
+            <Route path="/faculty-dashboard" element={<FacultyDashboard />} />
+            <Route path="/create-project" element={<CreateProjectPage />} />
+            <Route
+              path="/faculty-submissions"
+              element={<FacultySubmissionsView />}
+            />
+            <Route
+              path="/evaluate-submission/:submissionId"
+              element={<EvaluateSubmissionPage />}
+            />
+            <Route
+              path="/projects/:projectId/rubrics"
+              element={<ProjectRubricsPage />}
+            />
+            <Route
+              path="/projects/:projectId/create-rubric"
+              element={<CreateRubricPage />}
+            />
+          </Route>
+        </Routes>
+      </div>
+    </>
   );
 }
 

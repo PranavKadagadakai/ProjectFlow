@@ -1,66 +1,31 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Amplify } from "aws-amplify";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router } from "react-router-dom";
 
-// Import Bootstrap CSS
+// Import Bootstrap CSS and Icons
 import "bootstrap/dist/css/bootstrap.min.css";
-// Import custom global CSS after Bootstrap to allow overrides if necessary
-import "./index.css";
+import "bootstrap-icons/font/bootstrap-icons.css"; // For theme toggle icons
+import "./index.css"; // Custom global styles, including theme variables
 
-import App from "./App.jsx";
+import App from "./App.jsx"; // App will contain the main routing logic
 import amplifyConfig from "./config/amplifyConfig.js";
 import { AuthProvider } from "./contexts/AuthContext";
-import ProtectedRoute from "./routes/ProtectedRoute.jsx";
-import SubmissionForm from "./components/SubmissionForm.jsx"; // Import the SubmissionForm component
-
-console.log("Amplify Configuration being applied:", amplifyConfig);
+import { ThemeProvider } from "./contexts/ThemeContext.jsx"; // Import ThemeProvider
 
 Amplify.configure(amplifyConfig);
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <Router>
-      <AuthProvider>
-        <Routes>
-          {/* Main App route (can be login/home or dashboard based on auth) */}
-          <Route path="/" element={<App />} />
-
-          {/* Placeholder for dedicated login/signup pages if separated from App.jsx */}
-          <Route
-            path="/login"
-            element={
-              <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
-                <h2 className="text-center text-dark">Login Page</h2>
-              </div>
-            }
-          />
-          <Route
-            path="/signup"
-            element={
-              <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
-                <h2 className="text-center text-dark">Sign Up Page</h2>
-              </div>
-            }
-          />
-
-          {/* Protected routes */}
-          <Route element={<ProtectedRoute />}>
-            <Route
-              path="/dashboard"
-              element={
-                <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
-                  <h2 className="text-center text-dark">
-                    Welcome to the Dashboard!
-                  </h2>
-                </div>
-              }
-            />
-            {/* New protected route for submission form */}
-            <Route path="/submit-project" element={<SubmissionForm />} />
-          </Route>
-        </Routes>
-      </AuthProvider>
+      {/* ThemeProvider wraps everything to provide theme context globally */}
+      <ThemeProvider>
+        {/* AuthProvider wraps App to provide authentication context */}
+        <AuthProvider>
+          <App />{" "}
+          {/* App component handles all routes and conditional rendering */}
+        </AuthProvider>
+      </ThemeProvider>
     </Router>
   </StrictMode>
 );

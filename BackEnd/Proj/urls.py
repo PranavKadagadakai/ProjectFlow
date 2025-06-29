@@ -14,17 +14,17 @@ urlpatterns = [
     
     # Project URLs
     path('api/projects/', ProjectListCreateView.as_view(), name='project_list_create'),
-    path('api/projects/<int:pk>/', ProjectDetailView.as_view(), name='project_detail'),
+    path('api/projects/<uuid:pk>/', ProjectDetailView.as_view(), name='project_detail'),
 
     # Submission URLs
     path('api/submissions/', SubmissionListCreateView.as_view(), name='submission_list_create'),
-    path('api/submissions/<int:pk>/', SubmissionDetailView.as_view(), name='submission_detail'),
+    path('api/submissions/<uuid:pk>/', SubmissionDetailView.as_view(), name='submission_detail'),
 
     # Rubric URLs (nested under project, or standalone if preferred)
-    path('api/projects/<int:project_pk>/rubrics/', RubricListCreateView.as_view(), name='rubric_list_create'),
+    path('api/projects/<uuid:project_pk>/rubrics/', RubricListCreateView.as_view(), name='rubric_list_create'),
 
     # Evaluation URLs (nested under submission)
-    path('api/submissions/<int:submission_pk>/evaluations/', EvaluationListCreateView.as_view(), name='evaluation_list_create'),
+    path('api/submissions/<uuid:submission_pk>/evaluations/', EvaluationListCreateView.as_view(), name='evaluation_list_create'),
 
     # Leaderboard URL
     path('api/leaderboard/', LeaderboardView.as_view(), name='leaderboard'),
