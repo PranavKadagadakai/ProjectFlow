@@ -349,7 +349,7 @@ class LeaderboardView(APIView):
     API endpoint to display a leaderboard of projects based on total evaluation points.
     All authenticated users can view the leaderboard.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # Allow all authenticated users to view the leaderboard
 
     CACHE_KEY = 'leaderboard_data'
     CACHE_TTL = 300  # 5 minutes

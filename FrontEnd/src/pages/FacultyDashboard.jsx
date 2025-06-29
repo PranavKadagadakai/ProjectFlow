@@ -1,7 +1,7 @@
 // FrontEnd/src/pages/FacultyDashboard.jsx
 import React from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
+import useAuth from "../hooks/useAuth";
 
 const FacultyDashboard = () => {
   const { user } = useAuth(); // Get user information from AuthContext

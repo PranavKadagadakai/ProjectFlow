@@ -66,10 +66,10 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
 
           {/* Common Protected Routes (require any authenticated user) */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/submit-project" element={<SubmitProjectPage />} />
             <Route
               path="/project-results/:submissionId"

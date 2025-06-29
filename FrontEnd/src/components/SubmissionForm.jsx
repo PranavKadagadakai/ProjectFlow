@@ -14,7 +14,6 @@ const SubmissionForm = () => {
   const [demoVideo, setDemoVideo] = useState(null); // For file input
   const [availableProjects, setAvailableProjects] = useState([]); // To store projects for dropdown
   const [selectedProjectId, setSelectedProjectId] = useState(""); // To store selected project UUID
-
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
@@ -142,7 +141,7 @@ const SubmissionForm = () => {
   return (
     <div className="container mt-5">
       <div className="card shadow-sm p-4 mx-auto" style={{ maxWidth: "700px" }}>
-        <h2 className="mb-4 text-center text-dark">Submit Your Project</h2>
+        <h2 className="mb-4 text-center">Submit Your Project</h2>
         {message && (
           <div
             className={`alert ${isError ? "alert-danger" : "alert-success"}`}

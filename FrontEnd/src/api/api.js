@@ -20,7 +20,7 @@ api.interceptors.request.use(
       }
     } catch (error) {
       console.error("Error getting auth token for API request:", error);
-      // It's not safe to use `Navigate` directly here.
+      // It's not safe to use `Maps` directly here.
       // For global navigation on auth token failure, consider:
       // 1. Dispatching a global event/context update that triggers navigation in a component.
       // 2. Handling the 401 error in the response interceptor or the calling component.
