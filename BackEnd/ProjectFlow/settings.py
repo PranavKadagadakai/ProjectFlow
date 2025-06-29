@@ -211,3 +211,26 @@ AWS_SES_SOURCE_EMAIL = os.getenv('AWS_SES_SOURCE_EMAIL') # Verified email addres
 STATIC_URL = '/static/'
 # STATICFILES_DIRS = [BASE_DIR / 'frontend/build/static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# DynamoDB Settings (for PynamoDB)
+DYNAMODB_REGION = os.getenv('AWS_DYNAMODB_REGION', COGNITO_REGION)
+DYNAMODB_HOST = os.getenv('AWS_DYNAMODB_ENDPOINT_URL') # For local DynamoDB (e.g., 'http://localhost:8000')
+DYNAMODB_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID') # Reuse main AWS keys
+DYNAMODB_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY') # Reuse main AWS keys
+DYNAMODB_DEFAULT_READ_CAPACITY = int(os.environ.get('DYNAMODB_READ_CAPACITY', '5'))
+DYNAMODB_DEFAULT_WRITE_CAPACITY = int(os.environ.get('DYNAMODB_WRITE_CAPACITY', '5'))
+
+# DynamoDB Table Names (ensure these are unique in your AWS account)
+DYNAMODB_PROJECTS_TABLE = os.getenv('DYNAMODB_PROJECTS_TABLE', 'ProjectFlow_Projects')
+DYNAMODB_SUBMISSIONS_TABLE = os.getenv('DYNAMODB_SUBMISSIONS_TABLE', 'ProjectFlow_Submissions')
+DYNAMODB_RUBRICS_TABLE = os.getenv('DYNAMODB_RUBRICS_TABLE', 'ProjectFlow_Rubrics')
+DYNAMODB_EVALUATIONS_TABLE = os.getenv('DYNAMODB_EVALUATIONS_TABLE', 'ProjectFlow_Evaluations')
+
+# PynamoDB specific configuration (optional, PynamoDB will use boto3 client defaults)
+# Set these if you need to override boto3's default client behavior
+# PYNAMODB_CONNECTION_OPTIONS = {
+#     'region_name': DYNAMODB_REGION,
+#     'aws_access_key_id': DYNAMODB_ACCESS_KEY_ID,
+#     'aws_secret_access_key': DYNAMODB_SECRET_ACCESS_KEY,
+#     'endpoint_url': DYNAMODB_HOST,
+# }

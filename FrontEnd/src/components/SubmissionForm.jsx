@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// FrontEnd/src/components/SubmissionForm.jsx
+import React, { useState, useEffect } from "react";
 import { uploadData } from "aws-amplify/storage"; // For S3 uploads
 import api from "../api/api"; // Your Axios API instance
 import useAuth from "../hooks/useAuth"; // To get user details for submission
@@ -11,10 +12,32 @@ const SubmissionForm = () => {
   const [githubLink, setGithubLink] = useState("");
   const [youtubeLink, setYoutubeLink] = useState("");
   const [demoVideo, setDemoVideo] = useState(null); // For file input
+  const [availableProjects, setAvailableProjects] = useState([]); // To store projects for dropdown
+  const [selectedProjectId, setSelectedProjectId] = useState(""); // To store selected project UUID
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
+
+  // Fetch available projects when component mounts
+  useEffect(() => {
+    const fetchProjects = async () => {
+      if (!isAuthenticated) return;
+      try {
+        const response = await api.get("/api/projects/");
+        // Assuming project_id is a UUID string from DynamoDB
+        setAvailableProjects(response.data);
+        if (response.data.length > 0) {
+          setSelectedProjectId(response.data[0].project_id); // Select first project by default
+        }
+      } catch (error) {
+        console.error("Error fetching projects:", error);
+        setMessage("Failed to load projects.");
+        setIsError(true);
+      }
+    };
+    fetchProjects();
+  }, [isAuthenticated]);
 
   const handleFileChange = (e, setFile) => {
     setFile(e.target.files[0]);
@@ -33,10 +56,12 @@ const SubmissionForm = () => {
       return;
     }
 
-    // You'll need to fetch the available projects and allow the user to select one
-    // For this example, let's assume a project ID (e.g., project 1) for demonstration.
-    // In a real app, you'd have a dropdown to select an active project.
-    const projectId = 1; // REPLACE WITH ACTUAL PROJECT SELECTION LOGIC
+    if (!selectedProjectId) {
+      setMessage("Please select a project.");
+      setIsError(true);
+      setLoading(false);
+      return;
+    }
 
     let reportFileKey = null;
     let demoVideoFileKey = null;
@@ -76,13 +101,13 @@ const SubmissionForm = () => {
 
       // 3. Submit Project Data to Django Backend
       const submissionData = {
-        project: projectId,
+        project_id: selectedProjectId, // Use selectedProjectId (UUID string)
         title: title,
         description: description,
-        report_file: reportFileKey, // Pass S3 key for Django to store
+        report_file_s3_key: reportFileKey, // Pass S3 key for Django to store
         github_link: githubLink,
         youtube_link: youtubeLink,
-        demo_video_file: demoVideoFileKey, // Pass S3 key for Django to store
+        demo_video_file_s3_key: demoVideoFileKey, // Pass S3 key for Django to store
       };
 
       const response = await api.post("/api/submissions/", submissionData);
@@ -98,6 +123,9 @@ const SubmissionForm = () => {
       setDemoVideo(null);
       document.getElementById("projectReportFile").value = ""; // Clear file input visually
       document.getElementById("demoVideoFile").value = ""; // Clear file input visually
+      setSelectedProjectId(
+        availableProjects.length > 0 ? availableProjects[0].project_id : ""
+      );
     } catch (error) {
       console.error("Submission error:", error);
       setIsError(true);
@@ -125,8 +153,34 @@ const SubmissionForm = () => {
         )}
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
+            <label htmlFor="projectSelect" className="form-label">
+              Select Project
+            </label>
+            <select
+              className="form-select"
+              id="projectSelect"
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+              required
+            >
+              <option value="">-- Select a Project --</option>
+              {availableProjects.map((project) => (
+                <option key={project.project_id} value={project.project_id}>
+                  {project.title}
+                </option>
+              ))}
+            </select>
+            {availableProjects.length === 0 && !loading && (
+              <p className="text-muted mt-2">
+                No projects available for submission. Please ask faculty to
+                create one.
+              </p>
+            )}
+          </div>
+
+          <div className="mb-3">
             <label htmlFor="projectTitle" className="form-label">
-              Project Title
+              Submission Title
             </label>
             <input
               type="text"
