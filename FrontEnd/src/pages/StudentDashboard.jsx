@@ -4,11 +4,11 @@ import { Link } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 
 const StudentDashboard = () => {
-  const { user } = useAuth(); // Get user information from AuthContext
+  const { user } = useAuth();
 
   return (
-    <div className="card shadow-sm p-4 rounded text-center bg-white">
-      <h2 className="mb-4 text-dark">Welcome, {user?.username}!</h2>
+    <div className="card shadow-sm p-4 rounded text-center">
+      <h2 className="mb-4">Welcome, {user?.username}!</h2>
       <p className="lead mb-4">
         This is your student dashboard. Submit new projects and track your
         results.
@@ -19,9 +19,6 @@ const StudentDashboard = () => {
         </Link>
         <Link to="/my-submissions" className="btn btn-info btn-lg">
           View My Submissions & Results
-        </Link>
-        <Link to="/student-profile" className="btn btn-primary btn-lg">
-          My Profile
         </Link>
         <Link to="/leaderboard" className="btn btn-secondary btn-lg">
           View Leaderboard

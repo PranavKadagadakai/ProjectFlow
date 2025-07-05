@@ -5,7 +5,7 @@
 echo "--- Starting Project Setup ---"
 
 # --- Environment File Setup ---
-echo "[1/5] Checking for environment files..."
+echo "[1/6] Checking for environment files..."
 
 # Create Backend .env if it doesn't exist
 if [ ! -f "BackEnd/.env" ]; then
@@ -27,16 +27,19 @@ AWS_STORAGE_BUCKET_NAME=YOUR_S3_BUCKET_NAME
 # AWS SES Configuration
 AWS_SES_SOURCE_EMAIL=your-verified-email@example.com
 
-# AWS DynamoDB Configuration (for local development)
+# AWS DynamoDB Configuration
 AWS_DYNAMODB_REGION=us-east-1
 # For local DynamoDB, uncomment the next line:
 # AWS_DYNAMODB_ENDPOINT_URL=http://localhost:8000
 
-# DynamoDB Table Names (defaults are usually fine)
+# DynamoDB Table Names
 DYNAMODB_PROJECTS_TABLE=ProjectFlow_Projects
 DYNAMODB_SUBMISSIONS_TABLE=ProjectFlow_Submissions
 DYNAMODB_RUBRICS_TABLE=ProjectFlow_Rubrics
 DYNAMODB_EVALUATIONS_TABLE=ProjectFlow_Evaluations
+
+# ML Model Configuration
+ML_SCORE_WEIGHT=0.3
 EOF
     echo "IMPORTANT: Dummy 'BackEnd/.env' created. Please edit it with your actual AWS credentials."
 fi
@@ -44,11 +47,19 @@ fi
 # Create Frontend .env if it doesn't exist
 if [ ! -f "FrontEnd/.env" ]; then
     echo "Creating .env file for Frontend..."
-    echo "VITE_BACKEND_API_URL=http://127.0.0.1:8000" > FrontEnd/.env
+    cat <<EOF > FrontEnd/.env
+VITE_BACKEND_API_URL=http://127.0.0.1:8000
+VITE_AWS_PROJECT_REGION=us-east-1
+VITE_AWS_COGNITO_REGION=us-east-1
+VITE_AWS_COGNITO_USER_POOL_ID=YOUR_COGNITO_USER_POOL_ID
+VITE_AWS_COGNITO_CLIENT_ID=YOUR_COGNITO_APP_CLIENT_ID
+VITE_AWS_S3_BUCKET=YOUR_S3_BUCKET_NAME
+VITE_AWS_S3_REGION=us-east-1
+EOF
 fi
 
 # --- Backend Setup ---
-echo "[2/5] Setting up Python backend..."
+echo "[2/6] Setting up Python backend..."
 cd BackEnd
 
 # Check if python3 is available
@@ -80,13 +91,15 @@ fi
 echo "Backend setup complete."
 
 # --- Frontend Setup ---
-echo "[3/5] Setting up Node.js frontend..."
+echo "[3/6] Setting up Node.js frontend..."
 cd ../FrontEnd
 
 # Check if npm is available
 if ! command -v npm &> /dev/null
 then
     echo "ERROR: npm could not be found. Please install Node.js."
+    # We are in FrontEnd, need to go back to BackEnd to deactivate
+    cd ../BackEnd
     deactivate
     exit 1
 fi
@@ -96,30 +109,44 @@ echo "Installing Node.js packages from package.json..."
 npm install
 if [ $? -ne 0 ]; then
     echo "ERROR: Failed to install Node.js packages."
+    cd ../BackEnd
     deactivate
     exit 1
 fi
 
 echo "Frontend setup complete."
 
-# --- DynamoDB Table Creation ---
-echo "[4/5] Creating DynamoDB tables..."
+# --- NLTK Data Download ---
+echo "[4/6] Downloading NLTK models..."
 cd ../BackEnd
 
-# Run the table creation script using the activated venv
+# Run the download commands using the activated venv
+python -m nltk.downloader punkt
+if [ $? -ne 0 ]; then
+    echo "WARNING: Failed to download NLTK 'punkt' model."
+fi
+python -m nltk.downloader stopwords
+if [ $? -ne 0 ]; then
+    echo "WARNING: Failed to download NLTK 'stopwords' model."
+fi
+
+
+# --- DynamoDB Table Creation ---
+echo "[5/6] Creating DynamoDB tables..."
+# Already in BackEnd directory
 python Proj/create_tables.py
 if [ $? -ne 0 ]; then
-    echo "WARNING: Failed to create DynamoDB tables. Ensure your AWS credentials in BackEnd/.env are correct and the local/remote DynamoDB instance is running."
+    echo "WARNING: Failed to create DynamoDB tables. Ensure your AWS credentials in BackEnd/.env are correct."
 fi
 
 # Deactivate the virtual environment
 deactivate
 cd ..
 
-echo "[5/5] Final instructions..."
+echo "[6/6] Final instructions..."
 echo "--- Setup Complete! ---"
 echo ""
-echo "ACTION REQUIRED: Please edit the dummy 'BackEnd/.env' file with your real AWS credentials."
+echo "ACTION REQUIRED: Please edit the dummy 'BackEnd/.env' and 'FrontEnd/.env' files with your real AWS credentials."
 echo ""
 echo "To run the application:"
 echo "1. Open a new terminal and run the backend server:"

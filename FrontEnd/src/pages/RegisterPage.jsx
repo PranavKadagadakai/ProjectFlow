@@ -1,106 +1,162 @@
 // FrontEnd/src/pages/RegisterPage.jsx
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 
 const RegisterPage = () => {
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [authError, setAuthError] = useState(null);
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    role: "student", // Default role
+  });
+  const [verificationCode, setVerificationCode] = useState("");
+  const [step, setStep] = useState(1); // 1 for registration, 2 for verification
   const [loading, setLoading] = useState(false);
-  const [signUpSuccess, setSignUpSuccess] = useState(false);
-  const { signUp } = useAuth();
+  const [message, setMessage] = useState("");
+  const { signUp, confirmSignUp } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleRegister = async (e) => {
     e.preventDefault();
-    setAuthError(null);
+    setMessage("");
+    if (formData.password !== formData.confirmPassword) {
+      setMessage("Passwords do not match.");
+      return;
+    }
     setLoading(true);
-    setSignUpSuccess(false); // Reset success state on new attempt
     try {
-      const result = await signUp(username, password, email);
-      if (result.isSignUpComplete) {
-        setSignUpSuccess(true);
-        // Navigate to login after successful sign up
-        navigate("/login", {
-          state: { message: "Registration successful! Please log in." },
-        });
-      } else {
-        setAuthError(
-          `Sign-up requires next step: ${result.nextStep.signUpStep}`
-        );
-      }
-    } catch (error) {
-      console.error("Sign up error:", error);
-      setAuthError(
-        error.message || "An unknown error occurred during sign-up."
+      await signUp(
+        formData.username,
+        formData.email,
+        formData.password,
+        formData.role
       );
+      setMessage("A verification code has been sent to your email.");
+      setStep(2); // Move to verification step
+    } catch (error) {
+      setMessage(error.message || "Registration failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    setMessage("");
+    setLoading(true);
+    try {
+      await confirmSignUp(formData.username, verificationCode);
+      setMessage("Verification successful! Redirecting to login...");
+      setTimeout(() => navigate("/login"), 2000);
+    } catch (error) {
+      setMessage(error.message || "Verification failed.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div
-      className="card shadow-sm p-4 rounded text-center bg-white"
-      style={{ maxWidth: "400px", width: "90%" }}
-    >
-      <h2 className="mb-4 text-dark">Register</h2>
-      {authError && (
-        <div className="alert alert-danger" role="alert">
-          {authError}
-        </div>
-      )}
-      {signUpSuccess && (
-        <div className="alert alert-success" role="alert">
-          Registration successful! Please check your email for a confirmation
-          code if required, then login.
-        </div>
-      )}
-      <form onSubmit={handleSubmit}>
-        <div className="mb-3">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
-        </div>
-        <div className="mb-3">
-          <input
-            type="email"
-            className="form-control"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div className="mb-3">
-          <input
-            type="password"
-            className="form-control"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        <div className="d-grid gap-2">
-          <button type="submit" className="btn btn-primary" disabled={loading}>
+    <div className="card shadow-sm p-4 mx-auto" style={{ maxWidth: "500px" }}>
+      <h2 className="mb-4 text-center">
+        {step === 1 ? "Create Account" : "Verify Email"}
+      </h2>
+      {message && <div className="alert alert-info">{message}</div>}
+
+      {step === 1 ? (
+        <form onSubmit={handleRegister}>
+          <div className="mb-3">
+            <label>Username</label>
+            <input
+              type="text"
+              name="username"
+              className="form-control"
+              onChange={handleChange}
+              required
+            />
+          </div>
+          <div className="mb-3">
+            <label>Email</label>
+            <input
+              type="email"
+              name="email"
+              className="form-control"
+              onChange={handleChange}
+              required
+            />
+          </div>
+          <div className="mb-3">
+            <label>Password</label>
+            <input
+              type="password"
+              name="password"
+              className="form-control"
+              onChange={handleChange}
+              required
+            />
+          </div>
+          <div className="mb-3">
+            <label>Confirm Password</label>
+            <input
+              type="password"
+              name="confirmPassword"
+              className="form-control"
+              onChange={handleChange}
+              required
+            />
+          </div>
+          {/* --- New Role Selection Dropdown --- */}
+          <div className="mb-3">
+            <label htmlFor="role" className="form-label">
+              Register as
+            </label>
+            <select
+              id="role"
+              name="role"
+              className="form-select"
+              value={formData.role}
+              onChange={handleChange}
+            >
+              <option value="student">Student</option>
+              <option value="faculty">Faculty</option>
+              <option value="administrator">Administrator</option>
+            </select>
+          </div>
+          {/* --- End of New Code --- */}
+          <button
+            type="submit"
+            className="btn btn-primary w-100"
+            disabled={loading}
+          >
             {loading ? "Registering..." : "Register"}
           </button>
-        </div>
-      </form>
-      <p className="mt-3 text-muted">
-        Already have an account?{" "}
-        <Link to="/login" className="btn btn-link p-0 border-0">
-          Login
-        </Link>
-      </p>
+        </form>
+      ) : (
+        <form onSubmit={handleVerify}>
+          <div className="mb-3">
+            <label>Verification Code</label>
+            <input
+              type="text"
+              className="form-control"
+              onChange={(e) => setVerificationCode(e.target.value)}
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="btn btn-primary w-100"
+            disabled={loading}
+          >
+            {loading ? "Verifying..." : "Verify"}
+          </button>
+        </form>
+      )}
     </div>
   );
 };

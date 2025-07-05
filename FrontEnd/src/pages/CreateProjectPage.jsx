@@ -4,14 +4,21 @@ import { useNavigate } from "react-router-dom";
 import api from "../api/api";
 
 const CreateProjectPage = () => {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    start_date: "",
+    end_date: "",
+  });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const navigate = useNavigate();
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,19 +26,14 @@ const CreateProjectPage = () => {
     setMessage("");
     setIsError(false);
 
-    const projectData = {
-      title,
-      description,
-      start_date: startDate,
-      end_date: endDate,
-    };
-
     try {
-      await api.post("/api/projects/", projectData);
+      const response = await api.post("/api/projects/", formData);
       setMessage("Project created successfully! Redirecting...");
-      setTimeout(() => navigate("/faculty-dashboard"), 2000);
+      setTimeout(
+        () => navigate(`/project/${response.data.project_id}/rubrics`),
+        2000
+      );
     } catch (error) {
-      console.error("Error creating project:", error);
       setIsError(true);
       setMessage(error.response?.data?.detail || "Failed to create project.");
     } finally {
@@ -40,81 +42,80 @@ const CreateProjectPage = () => {
   };
 
   return (
-    <div className="container mt-5">
-      <div className="card shadow-sm p-4 mx-auto" style={{ maxWidth: "700px" }}>
-        <h2 className="mb-4 text-center">Create New Project</h2>
-        {message && (
-          <div
-            className={`alert ${isError ? "alert-danger" : "alert-success"}`}
-            role="alert"
-          >
-            {message}
-          </div>
-        )}
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label htmlFor="projectTitle" className="form-label">
-              Project Title
+    <div className="card shadow-sm p-4 mx-auto" style={{ maxWidth: "700px" }}>
+      <h2 className="mb-4 text-center">Create New Project</h2>
+      {message && (
+        <div className={`alert ${isError ? "alert-danger" : "alert-success"}`}>
+          {message}
+        </div>
+      )}
+      <form onSubmit={handleSubmit}>
+        <div className="mb-3">
+          <label htmlFor="title" className="form-label">
+            Project Title
+          </label>
+          <input
+            type="text"
+            className="form-control"
+            id="title"
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label htmlFor="description" className="form-label">
+            Description
+          </label>
+          <textarea
+            className="form-control"
+            id="description"
+            name="description"
+            rows="4"
+            value={formData.description}
+            onChange={handleChange}
+            required
+          ></textarea>
+        </div>
+        <div className="row">
+          <div className="col-md-6 mb-3">
+            <label htmlFor="start_date" className="form-label">
+              Start Date
             </label>
             <input
-              type="text"
+              type="date"
               className="form-control"
-              id="projectTitle"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              id="start_date"
+              name="start_date"
+              value={formData.start_date}
+              onChange={handleChange}
               required
             />
           </div>
-          <div className="mb-3">
-            <label htmlFor="projectDescription" className="form-label">
-              Description
+          <div className="col-md-6 mb-3">
+            <label htmlFor="end_date" className="form-label">
+              End Date
             </label>
-            <textarea
+            <input
+              type="date"
               className="form-control"
-              id="projectDescription"
-              rows="4"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              id="end_date"
+              name="end_date"
+              value={formData.end_date}
+              onChange={handleChange}
               required
-            ></textarea>
+            />
           </div>
-          <div className="row">
-            <div className="col-md-6 mb-3">
-              <label htmlFor="startDate" className="form-label">
-                Start Date
-              </label>
-              <input
-                type="date"
-                className="form-control"
-                id="startDate"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-              />
-            </div>
-            <div className="col-md-6 mb-3">
-              <label htmlFor="endDate" className="form-label">
-                End Date
-              </label>
-              <input
-                type="date"
-                className="form-control"
-                id="endDate"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-          <button
-            type="submit"
-            className="btn btn-primary w-100"
-            disabled={loading}
-          >
-            {loading ? "Creating..." : "Create Project"}
-          </button>
-        </form>
-      </div>
+        </div>
+        <button
+          type="submit"
+          className="btn btn-primary w-100"
+          disabled={loading}
+        >
+          {loading ? "Creating..." : "Create Project & Add Rubrics"}
+        </button>
+      </form>
     </div>
   );
 };

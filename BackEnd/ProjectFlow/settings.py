@@ -237,6 +237,9 @@ CACHES = {
     }
 }
 
+# ML Model Settings
+ML_SCORE_WEIGHT = float(os.getenv('ML_SCORE_WEIGHT', '0.3'))
+
 # PynamoDB specific configuration (optional, PynamoDB will use boto3 client defaults)
 # Set these if you need to override boto3's default client behavior
 # PYNAMODB_CONNECTION_OPTIONS = {

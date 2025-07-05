@@ -16,16 +16,16 @@ import { ThemeProvider } from "./contexts/ThemeContext.jsx"; // Import ThemeProv
 Amplify.configure(amplifyConfig);
 
 createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <Router>
-      {/* ThemeProvider wraps everything to provide theme context globally */}
-      <ThemeProvider>
-        {/* AuthProvider wraps App to provide authentication context */}
-        <AuthProvider>
-          <App />{" "}
-          {/* App component handles all routes and conditional rendering */}
-        </AuthProvider>
-      </ThemeProvider>
-    </Router>
-  </StrictMode>
+  // <StrictMode>
+  <Router>
+    {/* ThemeProvider wraps everything to provide theme context globally */}
+    <ThemeProvider>
+      {/* AuthProvider wraps App to provide authentication context */}
+      <AuthProvider>
+        <App />{" "}
+        {/* App component handles all routes and conditional rendering */}
+      </AuthProvider>
+    </ThemeProvider>
+  </Router>
+  // </StrictMode>
 );

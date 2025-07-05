@@ -11,12 +11,10 @@ const FacultySubmissionsView = () => {
   useEffect(() => {
     const fetchSubmissions = async () => {
       try {
-        [cite_start]; // The backend automatically returns all submissions for faculty users [cite: 93]
-        const response = await api.get("/api/submissions/");
+        const response = await api.get("/api/submissions/my-submissions/"); // Endpoint returns all for faculty
         setSubmissions(response.data);
       } catch (err) {
         setError("Failed to load submissions.");
-        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -24,7 +22,7 @@ const FacultySubmissionsView = () => {
     fetchSubmissions();
   }, []);
 
-  if (loading) return <div className="text-center">Loading...</div>;
+  if (loading) return <div className="text-center">Loading submissions...</div>;
   if (error) return <div className="alert alert-danger">{error}</div>;
 
   return (
@@ -33,7 +31,7 @@ const FacultySubmissionsView = () => {
       <div className="card shadow-sm">
         <div className="card-body">
           <div className="table-responsive">
-            <table className="table table-hover">
+            <table className="table table-hover align-middle">
               <thead>
                 <tr>
                   <th>Student</th>
@@ -53,7 +51,7 @@ const FacultySubmissionsView = () => {
                       <td>
                         <span
                           className={`badge bg-${
-                            sub.status === "evaluated" ? "success" : "warning"
+                            sub.status === "Evaluated" ? "success" : "warning"
                           }`}
                         >
                           {sub.status}
@@ -61,10 +59,10 @@ const FacultySubmissionsView = () => {
                       </td>
                       <td>
                         <Link
-                          to={`/evaluate-submission/${sub.submission_id}`}
+                          to={`/evaluate/${sub.submission_id}`}
                           className="btn btn-primary btn-sm"
                         >
-                          View & Evaluate
+                          {sub.status === "Evaluated" ? "View" : "Evaluate"}
                         </Link>
                       </td>
                     </tr>
@@ -72,7 +70,7 @@ const FacultySubmissionsView = () => {
                 ) : (
                   <tr>
                     <td colSpan="5" className="text-center">
-                      No submissions found.
+                      No submissions found yet.
                     </td>
                   </tr>
                 )}

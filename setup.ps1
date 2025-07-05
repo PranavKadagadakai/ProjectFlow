@@ -3,7 +3,7 @@
 Write-Host "--- Starting Project Setup ---" -ForegroundColor Green
 
 # --- Environment File Setup ---
-Write-Host "[1/5] Checking for environment files..." -ForegroundColor Cyan
+Write-Host "[1/6] Checking for environment files..." -ForegroundColor Cyan
 
 # Create Backend .env if it doesn't exist
 if (-not (Test-Path "BackEnd\.env")) {
@@ -25,16 +25,19 @@ AWS_STORAGE_BUCKET_NAME=YOUR_S3_BUCKET_NAME
 # AWS SES Configuration
 AWS_SES_SOURCE_EMAIL=your-verified-email@example.com
 
-# AWS DynamoDB Configuration (for local development)
+# AWS DynamoDB Configuration
 AWS_DYNAMODB_REGION=us-east-1
 # For local DynamoDB, uncomment the next line:
 # AWS_DYNAMODB_ENDPOINT_URL=http://localhost:8000
 
-# DynamoDB Table Names (defaults are usually fine)
+# DynamoDB Table Names
 DYNAMODB_PROJECTS_TABLE=ProjectFlow_Projects
 DYNAMODB_SUBMISSIONS_TABLE=ProjectFlow_Submissions
 DYNAMODB_RUBRICS_TABLE=ProjectFlow_Rubrics
 DYNAMODB_EVALUATIONS_TABLE=ProjectFlow_Evaluations
+
+# ML Model Configuration
+ML_SCORE_WEIGHT=0.3
 "@
     $backendEnvContent | Out-File -FilePath "BackEnd\.env" -Encoding utf8
     Write-Host "IMPORTANT: Dummy 'BackEnd\.env' created. Please edit it with your actual AWS credentials." -ForegroundColor Yellow
@@ -43,12 +46,20 @@ DYNAMODB_EVALUATIONS_TABLE=ProjectFlow_Evaluations
 # Create Frontend .env if it doesn't exist
 if (-not (Test-Path "FrontEnd\.env")) {
     Write-Host "Creating .env file for Frontend..." -ForegroundColor Yellow
-    "VITE_BACKEND_API_URL=http://127.0.0.1:8000" | Out-File -FilePath "FrontEnd\.env" -Encoding utf8
+    $frontendEnvContent = @"
+VITE_BACKEND_API_URL=http://127.0.0.1:8000
+VITE_AWS_PROJECT_REGION=us-east-1
+VITE_AWS_COGNITO_REGION=us-east-1
+VITE_AWS_COGNITO_USER_POOL_ID=YOUR_COGNITO_USER_POOL_ID
+VITE_AWS_COGNITO_CLIENT_ID=YOUR_COGNITO_APP_CLIENT_ID
+VITE_AWS_S3_BUCKET=YOUR_S3_BUCKET_NAME
+VITE_AWS_S3_REGION=us-east-1
+"@
+    $frontendEnvContent | Out-File -FilePath "FrontEnd\.env" -Encoding utf8
 }
 
-
 # --- Backend Setup ---
-Write-Host "[2/5] Setting up Python backend..." -ForegroundColor Cyan
+Write-Host "[2/6] Setting up Python backend..." -ForegroundColor Cyan
 Set-Location -Path "BackEnd"
 
 # Check for Python
@@ -78,7 +89,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "Backend setup complete." -ForegroundColor Green
 
 # --- Frontend Setup ---
-Write-Host "[3/5] Setting up Node.js frontend..." -ForegroundColor Cyan
+Write-Host "[3/6] Setting up Node.js frontend..." -ForegroundColor Cyan
 Set-Location -Path "..\FrontEnd"
 
 # Check for npm
@@ -98,9 +109,18 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "Frontend setup complete." -ForegroundColor Green
 
-# --- DynamoDB Table Creation ---
-Write-Host "[4/5] Creating DynamoDB tables..." -ForegroundColor Cyan
+# --- NLTK Data Download ---
+Write-Host "[4/6] Downloading NLTK models..." -ForegroundColor Cyan
 Set-Location -Path "..\BackEnd"
+python -m nltk.downloader punkt
+python -m nltk.downloader stopwords
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "WARNING: Failed to download NLTK data. The ML model may not work correctly." -ForegroundColor Yellow
+}
+
+
+# --- DynamoDB Table Creation ---
+Write-Host "[5/6] Creating DynamoDB tables..." -ForegroundColor Cyan
 python .\Proj\create_tables.py
 if ($LASTEXITCODE -ne 0) {
     Write-Host "WARNING: Failed to create DynamoDB tables. Ensure your AWS credentials in BackEnd\.env are correct." -ForegroundColor Yellow
@@ -110,10 +130,10 @@ if ($LASTEXITCODE -ne 0) {
 deactivate
 Set-Location -Path ".."
 
-Write-Host "[5/5] Final instructions..." -ForegroundColor Cyan
+Write-Host "[6/6] Final instructions..." -ForegroundColor Cyan
 Write-Host "--- Setup Complete! ---" -ForegroundColor Green
 Write-Host ""
-Write-Host "ACTION REQUIRED: Please edit the dummy 'BackEnd\.env' file with your real AWS credentials." -ForegroundColor Yellow
+Write-Host "ACTION REQUIRED: Please edit the dummy 'BackEnd\.env' and 'FrontEnd\.env' files with your real AWS credentials." -ForegroundColor Yellow
 Write-Host ""
 Write-Host "To run the application:"
 Write-Host "1. Open a new PowerShell terminal and run the backend server:"
