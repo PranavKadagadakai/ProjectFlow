@@ -1,5 +1,5 @@
 // FrontEnd/src/pages/RegisterPage.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react"; // Import useEffect
 import { useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 
@@ -9,7 +9,7 @@ const RegisterPage = () => {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "student", // Default role
+    role: "student", // Default role is 'student'
   });
   const [verificationCode, setVerificationCode] = useState("");
   const [step, setStep] = useState(1); // 1 for registration, 2 for verification
@@ -17,6 +17,22 @@ const RegisterPage = () => {
   const [message, setMessage] = useState("");
   const { signUp, confirmSignUp } = useAuth();
   const navigate = useNavigate();
+
+  // Log the current step on every render to help debug
+  console.log("RegisterPage - Current step (render):", step);
+
+  // Debugging useEffect for component mount/unmount
+  useEffect(() => {
+    console.log("RegisterPage Mounted. Initial step:", step);
+    return () => {
+      console.log("RegisterPage Unmounted.");
+    };
+  }, []);
+
+  // Debugging useEffect for step state changes
+  useEffect(() => {
+    console.log("RegisterPage - step state changed to:", step);
+  }, [step]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -32,16 +48,35 @@ const RegisterPage = () => {
     }
     setLoading(true);
     try {
-      await signUp(
+      const result = await signUp(
         formData.username,
         formData.email,
         formData.password,
         formData.role
       );
-      setMessage("A verification code has been sent to your email.");
-      setStep(2); // Move to verification step
+
+      console.log("Amplify signUp result:", result);
+
+      // Check the nextStep to determine the flow
+      if (result.nextStep.signUpStep === "CONFIRM_SIGN_UP") {
+        setMessage(
+          "A verification code has been sent to your email. Please enter it below."
+        );
+        setStep(2); // <--- This is called
+        console.log("RegisterPage - Calling setStep(2)."); // Confirm this line is reached
+      } else if (result.isSignUpComplete) {
+        // This case might happen if auto-verification is enabled in Cognito
+        setMessage("Registration successful! Redirecting to login...");
+        setTimeout(() => navigate("/login"), 2000);
+      } else {
+        // Handle other unexpected nextSteps if any
+        setMessage(
+          `Registration completed with an unexpected step: ${result.nextStep.signUpStep}. Please check your email for a verification code if you haven't received one.`
+        );
+      }
     } catch (error) {
-      setMessage(error.message || "Registration failed.");
+      console.error("Registration failed:", error); // Log the full error
+      setMessage(error.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -56,7 +91,11 @@ const RegisterPage = () => {
       setMessage("Verification successful! Redirecting to login...");
       setTimeout(() => navigate("/login"), 2000);
     } catch (error) {
-      setMessage(error.message || "Verification failed.");
+      console.error("Verification failed:", error); // Log the full error
+      setMessage(
+        error.message ||
+          "Verification failed. Please check the code and try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -72,46 +111,57 @@ const RegisterPage = () => {
       {step === 1 ? (
         <form onSubmit={handleRegister}>
           <div className="mb-3">
-            <label>Username</label>
+            <label htmlFor="username">Username</label>
             <input
               type="text"
               name="username"
+              id="username"
               className="form-control"
+              value={formData.username}
               onChange={handleChange}
+              autoComplete="username"
               required
             />
           </div>
           <div className="mb-3">
-            <label>Email</label>
+            <label htmlFor="email">Email</label>
             <input
               type="email"
               name="email"
+              id="email"
               className="form-control"
+              value={formData.email}
               onChange={handleChange}
+              autoComplete="email"
               required
             />
           </div>
           <div className="mb-3">
-            <label>Password</label>
+            <label htmlFor="password">Password</label>
             <input
               type="password"
               name="password"
+              id="password"
               className="form-control"
+              value={formData.password}
               onChange={handleChange}
+              autoComplete="new-password"
               required
             />
           </div>
           <div className="mb-3">
-            <label>Confirm Password</label>
+            <label htmlFor="confirmPassword">Confirm Password</label>
             <input
               type="password"
               name="confirmPassword"
+              id="confirmPassword"
               className="form-control"
+              value={formData.confirmPassword}
               onChange={handleChange}
+              autoComplete="new-password"
               required
             />
           </div>
-          {/* --- New Role Selection Dropdown --- */}
           <div className="mb-3">
             <label htmlFor="role" className="form-label">
               Register as
@@ -128,7 +178,6 @@ const RegisterPage = () => {
               <option value="administrator">Administrator</option>
             </select>
           </div>
-          {/* --- End of New Code --- */}
           <button
             type="submit"
             className="btn btn-primary w-100"
@@ -140,10 +189,12 @@ const RegisterPage = () => {
       ) : (
         <form onSubmit={handleVerify}>
           <div className="mb-3">
-            <label>Verification Code</label>
+            <label htmlFor="verificationCode">Verification Code</label>
             <input
               type="text"
+              id="verificationCode"
               className="form-control"
+              value={verificationCode}
               onChange={(e) => setVerificationCode(e.target.value)}
               required
             />

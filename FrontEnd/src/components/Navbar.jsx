@@ -20,6 +20,11 @@ const Navbar = () => {
     }
   };
 
+  // Determine if the user has a faculty or administrator role
+  const isFacultyOrAdmin =
+    user?.role === "faculty" || user?.role === "administrator";
+  const isStudent = user?.role === "student";
+
   return (
     // Navbar using Bootstrap classes, background color dynamically set by CSS variables
     <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -48,7 +53,7 @@ const Navbar = () => {
             {isAuthenticated ? (
               // Links for Authenticated Users (conditional on role)
               <>
-                {user?.is_staff ? ( // Faculty Specific Links
+                {isFacultyOrAdmin ? ( // Faculty/Admin Specific Links
                   <>
                     <li className="nav-item">
                       <Link className="nav-link" to="/faculty-dashboard">
@@ -61,13 +66,13 @@ const Navbar = () => {
                       </Link>
                     </li>
                     <li className="nav-item">
-                      <Link className="nav-link" to="/faculty-submissions">
+                      <Link className="nav-link" to="/submissions">
                         View Submissions
                       </Link>
                     </li>
                     {/* Add more faculty-specific links here, e.g., view rubrics for projects */}
                   </>
-                ) : (
+                ) : isStudent ? (
                   // Student Specific Links
                   <>
                     <li className="nav-item">
@@ -81,13 +86,18 @@ const Navbar = () => {
                       </Link>
                     </li>
                     <li className="nav-item">
+                      <Link className="nav-link" to="/my-submissions">
+                        My Submissions
+                      </Link>
+                    </li>
+                    <li className="nav-item">
                       <Link className="nav-link" to="/student-profile">
                         Profile
                       </Link>
                     </li>
-                    {/* Add more student-specific links here, e.g., "My Submissions" */}
                   </>
-                )}
+                ) : null}{" "}
+                {/* If role is not recognized, render nothing specific */}
                 {/* Common Protected Links */}
                 <li className="nav-item">
                   <Link className="nav-link" to="/leaderboard">
@@ -120,7 +130,9 @@ const Navbar = () => {
           {/* Right-aligned items: User Greeting, Theme Toggle, Sign Out */}
           <div className="d-flex align-items-center">
             {isAuthenticated && (
-              <span className="navbar-text me-3">Hello, {user?.username}!</span>
+              <span className="navbar-text me-3">
+                Hello, {user?.username}! ({user?.role})
+              </span>
             )}
 
             {/* Theme Toggle Button using Bootstrap Icons */}

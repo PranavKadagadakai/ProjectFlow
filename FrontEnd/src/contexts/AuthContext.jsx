@@ -21,13 +21,15 @@ export const AuthProvider = ({ children }) => {
 
   const checkCurrentUser = async () => {
     try {
-      const { idToken, accessToken } = (await fetchAuthSession()).tokens ?? {};
+      const { idToken } = (await fetchAuthSession()).tokens ?? {};
       if (idToken) {
+        // Extract the 'custom:role' from the ID token payload
+        const userRole = idToken.payload["custom:role"] || "student"; // Default to 'student' if not present
         setUser({
           username:
             idToken.payload["cognito:username"] || idToken.payload.email,
           email: idToken.payload.email,
-          // Add other user attributes as needed from the token
+          role: userRole, // Set the user's role (string: 'student', 'faculty', 'administrator')
         });
         setIsAuthenticated(true);
       } else {
@@ -51,7 +53,7 @@ export const AuthProvider = ({ children }) => {
         password,
       });
       if (isSignedIn) {
-        await checkCurrentUser();
+        await checkCurrentUser(); // Re-check user to get updated role
       }
       return {
         isSignedIn,
@@ -79,14 +81,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const handleSignUp = async (username, password, email) => {
+  // Modified signUp function to accept a role
+  const handleSignUp = async (username, email, password, role) => {
     setLoading(true);
     try {
       const { isSignUpComplete, nextStep } = await signUp({
         username,
         password,
-        attributes: {
-          email,
+        options: {
+          // Use options for attributes in Amplify v6
+          userAttributes: {
+            email,
+            "custom:role": role, // Pass the selected role string as 'custom:role'
+          },
         },
       });
       return {
@@ -108,8 +115,10 @@ export const AuthProvider = ({ children }) => {
         username,
         confirmationCode,
       });
+      // After successful confirmation, automatically sign in the user
+      // This will trigger checkCurrentUser and update the user context
       await handleSignIn(
-        username /* You might need to prompt for password again or handle flow */
+        username /* You might need to store and re-use password here or prompt user */
       );
     } catch (error) {
       console.error("Error confirming sign up:", error);
@@ -120,9 +129,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const handleConfirmSignIn = async (
-    user,
+    user, // This 'user' parameter is typically from the previous signIn call's result.nextStep.signInUser
     confirmationCode,
-    challengeResponse
+    challengeResponse // This is the actual response for the challenge
   ) => {
     setLoading(true);
     try {

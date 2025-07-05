@@ -19,15 +19,28 @@ const ProtectedRoute = ({ role }) => {
 
   // Role-based access check
   if (role) {
-    const hasRole =
-      (role === "faculty" && user?.is_staff) ||
-      (role === "student" && !user?.is_staff);
-    if (!hasRole) {
+    let hasRequiredRole = false;
+    if (role === "student" && user?.role === "student") {
+      hasRequiredRole = true;
+    } else if (
+      role === "faculty" &&
+      (user?.role === "faculty" || user?.role === "administrator")
+    ) {
+      // Faculty route allows both 'faculty' and 'administrator' roles
+      hasRequiredRole = true;
+    } else if (role === "administrator" && user?.role === "administrator") {
+      hasRequiredRole = true;
+    }
+
+    if (!hasRequiredRole) {
       // User is authenticated but doesn't have the required role.
-      // Redirect them to their respective dashboard.
-      const destination = user?.is_staff
-        ? "/faculty-dashboard"
-        : "/student-dashboard";
+      // Redirect them to their respective dashboard based on their actual role.
+      let destination = "/"; // Default redirect
+      if (user?.role === "student") {
+        destination = "/student-dashboard";
+      } else if (user?.role === "faculty" || user?.role === "administrator") {
+        destination = "/faculty-dashboard"; // Faculty and Admin go to faculty dashboard
+      }
       return <Navigate to={destination} replace />;
     }
   }

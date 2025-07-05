@@ -1,4 +1,4 @@
-# myapi/authentication.py
+# BackEnd/Proj/authentication.py
 
 import jwt
 import requests
@@ -116,17 +116,29 @@ class CognitoAuthentication(authentication.BaseAuthentication):
             
             User = get_user_model()
 
-            # For simplicity, we create a new Django user if one doesn't exist.
-            # You might want to sync more user details (like email) from the token.
-            try:
-                user = User.objects.get(username=cognito_username)
-            except User.DoesNotExist:
-                # Optionally create the user
-                # Be aware of security implications if you allow this.
-                user = User.objects.create_user(
-                    username=cognito_username,
-                    email=decoded_token.get('email') # optional
-                )
+            # Get the custom:role attribute from the Cognito token
+            # Default to 'student' if the attribute is missing (e.g., for existing users)
+            cognito_role = decoded_token.get('custom:role', 'student')
+
+            # Map Cognito role to Django's is_staff and is_superuser
+            is_staff_bool = (cognito_role == 'faculty' or cognito_role == 'administrator')
+            is_superuser_bool = (cognito_role == 'administrator')
+
+            user, created = User.objects.get_or_create(
+                username=cognito_username,
+                defaults={
+                    'email': decoded_token.get('email'),
+                    'is_staff': is_staff_bool,
+                    'is_superuser': is_superuser_bool,
+                }
+            )
+            
+            # If the user already exists, ensure their staff/superuser status is up-to-date
+            if not created and (user.is_staff != is_staff_bool or user.is_superuser != is_superuser_bool):
+                user.is_staff = is_staff_bool
+                user.is_superuser = is_superuser_bool
+                user.save(update_fields=['is_staff', 'is_superuser'])
+
 
             return (user, decoded_token)
 
