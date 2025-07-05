@@ -48,7 +48,7 @@ class SubmissionSerializer(serializers.Serializer):
 class RubricSerializer(serializers.Serializer):
     """Serializer for the RubricModel."""
     rubric_id = serializers.CharField(read_only=True)
-    project_id = serializers.CharField()
+    project_id = serializers.CharField(read_only=True)
     criterion = serializers.CharField(max_length=255)
     max_points = serializers.IntegerField(min_value=1)
     description = serializers.CharField(required=False, allow_blank=True, allow_null=True)

@@ -1,3 +1,4 @@
+// FrontEnd/src/contexts/AuthContext.jsx
 import React, { createContext, useState, useEffect, useContext } from "react";
 import {
   fetchAuthSession,
@@ -7,7 +8,6 @@ import {
   confirmSignIn,
   confirmSignUp,
 } from "aws-amplify/auth";
-
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
@@ -18,7 +18,6 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     checkCurrentUser();
   }, []);
-
   const checkCurrentUser = async () => {
     try {
       const { idToken } = (await fetchAuthSession()).tokens ?? {};
@@ -44,9 +43,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   };
-
   const handleSignIn = async (username, password) => {
-    setLoading(true);
     try {
       const { isSignedIn, nextStep } = await signIn({
         username,
@@ -62,13 +59,9 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("Error signing in:", error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
-
   const handleSignOut = async () => {
-    setLoading(true);
     try {
       await amplifySignOut();
       setUser(null);
@@ -76,14 +69,10 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("Error signing out:", error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
-
   // Modified signUp function to accept a role
   const handleSignUp = async (username, email, password, role) => {
-    setLoading(true);
     try {
       const { isSignUpComplete, nextStep } = await signUp({
         username,
@@ -103,37 +92,26 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("Error signing up:", error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
-
   const handleConfirmSignUp = async (username, confirmationCode) => {
-    setLoading(true);
     try {
       await confirmSignUp({
         username,
         confirmationCode,
       });
-      // After successful confirmation, automatically sign in the user
-      // This will trigger checkCurrentUser and update the user context
-      await handleSignIn(
-        username /* You might need to store and re-use password here or prompt user */
-      );
+      // After successful confirmation, you might want to automatically sign in the user
+      // or simply let them navigate to the login page.
     } catch (error) {
       console.error("Error confirming sign up:", error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
-
   const handleConfirmSignIn = async (
     user, // This 'user' parameter is typically from the previous signIn call's result.nextStep.signInUser
     confirmationCode,
     challengeResponse // This is the actual response for the challenge
   ) => {
-    setLoading(true);
     try {
       const { isSignedIn, nextStep } = await confirmSignIn({
         challengeResponse,
@@ -148,11 +126,8 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("Error confirming sign in:", error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
-
   const value = {
     user,
     isAuthenticated,
@@ -173,12 +148,7 @@ export const AuthProvider = ({ children }) => {
     },
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {" "}
-      {!loading && children}{" "}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export default AuthContext;
