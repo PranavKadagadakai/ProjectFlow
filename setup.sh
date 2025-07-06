@@ -70,14 +70,14 @@ then
 fi
 
 # Create a virtual environment
-python3 -m venv venv
+python3 -m venv .venv
 if [ $? -ne 0 ]; then
     echo "ERROR: Failed to create Python virtual environment."
     exit 1
 fi
 
 # Activate the virtual environment
-source venv/bin/activate
+source .venv/bin/activate
 
 # Install Python packages
 echo "Installing Python packages from requirements.txt..."
@@ -120,7 +120,7 @@ echo "Frontend setup complete."
 echo "[4/6] Downloading NLTK models..."
 cd ../BackEnd
 
-# Run the download commands using the activated venv
+# Run the download commands using the activated .venv
 python -m nltk.downloader punkt
 if [ $? -ne 0 ]; then
     echo "WARNING: Failed to download NLTK 'punkt' model."
@@ -151,7 +151,7 @@ echo ""
 echo "To run the application:"
 echo "1. Open a new terminal and run the backend server:"
 echo "   cd BackEnd"
-echo "   source venv/bin/activate"
+echo "   source .venv/bin/activate"
 echo "   python manage.py runserver"
 echo ""
 echo "2. Open another new terminal and run the frontend server:"

@@ -33,8 +33,8 @@ class BaseMeta:
     aws_access_key_id = settings.AWS_ACCESS_KEY_ID
     aws_secret_access_key = settings.AWS_SECRET_ACCESS_KEY
     # Use local DynamoDB for development if DYNAMODB_HOST is set
-    if settings.DYNAMODB_HOST:
-        host = settings.DYNAMODB_HOST
+    # if settings.DYNAMODB_HOST:
+    #     host = settings.DYNAMODB_HOST
 
 class ProjectModel(Model):
     """Represents an academic project in DynamoDB."""

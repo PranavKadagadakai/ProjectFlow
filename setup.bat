@@ -68,20 +68,20 @@ if %errorlevel% neq 0 (
 )
 
 echo Creating Python virtual environment...
-python -m venv venv
+python -m venv .venv
 if %errorlevel% neq 0 (
     echo ERROR: Failed to create Python virtual environment.
     goto :eof
 )
 
 echo Activating virtual environment...
-call venv\Scripts\activate.bat
+call .venv\Scripts\activate.bat
 
 echo Installing Python packages from requirements.txt...
 pip install -r requirements.txt
 if %errorlevel% neq 0 (
     echo ERROR: Failed to install Python packages.
-    call venv\Scripts\deactivate.bat
+    call .venv\Scripts\deactivate.bat
     goto :eof
 )
 echo Backend setup complete.
@@ -94,7 +94,7 @@ REM Check for npm
 npm --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo ERROR: npm could not be found. Please install Node.js and add it to your PATH.
-    call ..\BackEnd\venv\Scripts\deactivate.bat
+    call ..\BackEnd\.venv\Scripts\deactivate.bat
     goto :eof
 )
 
@@ -102,7 +102,7 @@ echo Installing Node.js packages from package.json...
 npm install
 if %errorlevel% neq 0 (
     echo ERROR: Failed to install Node.js packages.
-    call ..\BackEnd\venv\Scripts\deactivate.bat
+    call ..\BackEnd\.venv\Scripts\deactivate.bat
     goto :eof
 )
 echo Frontend setup complete.
@@ -124,7 +124,7 @@ if %errorlevel% neq 0 (
 )
 
 REM Deactivate and finish
-call venv\Scripts\deactivate.bat
+call .venv\Scripts\deactivate.bat
 cd ..
 
 echo [6/6] Final instructions...
@@ -135,7 +135,7 @@ echo.
 echo To run the application:
 echo 1. Open a new Command Prompt and run the backend server:
 echo    cd BackEnd
-echo    call venv\Scripts\activate.bat
+echo    call .venv\Scripts\activate.bat
 echo    python manage.py runserver
 echo.
 echo 2. Open another new Command Prompt and run the frontend server:

@@ -209,12 +209,14 @@ AWS_SES_REGION_NAME = os.getenv('AWS_SES_REGION_NAME', COGNITO_REGION)
 AWS_SES_SOURCE_EMAIL = os.getenv('AWS_SES_SOURCE_EMAIL') # Verified email address in SES
 
 STATIC_URL = '/static/'
-# STATICFILES_DIRS = [BASE_DIR / 'frontend/build/static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'staticfiles', 'frontend_build'),
+]
 
 # DynamoDB Settings (for PynamoDB)
 DYNAMODB_REGION = os.getenv('AWS_DYNAMODB_REGION', COGNITO_REGION)
-DYNAMODB_HOST = os.getenv('AWS_DYNAMODB_ENDPOINT_URL') # For local DynamoDB (e.g., 'http://localhost:8000')
+# DYNAMODB_HOST = os.getenv('AWS_DYNAMODB_ENDPOINT_URL') # For local DynamoDB (e.g., 'http://localhost:8000')
 DYNAMODB_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID') # Reuse main AWS keys
 DYNAMODB_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY') # Reuse main AWS keys
 

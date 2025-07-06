@@ -70,14 +70,14 @@ if (-not $pythonExists) {
 }
 
 Write-Host "Creating Python virtual environment..."
-python -m venv venv
+python -m venv .venv
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to create Python virtual environment." -ForegroundColor Red
     exit 1
 }
 
 Write-Host "Activating virtual environment..."
-.\venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 
 Write-Host "Installing Python packages from requirements.txt..."
 pip install -r requirements.txt
@@ -138,7 +138,7 @@ Write-Host ""
 Write-Host "To run the application:"
 Write-Host "1. Open a new PowerShell terminal and run the backend server:"
 Write-Host "   Set-Location -Path 'BackEnd'"
-Write-Host "   .\venv\Scripts\Activate.ps1"
+Write-Host "   .\.venv\Scripts\Activate.ps1"
 Write-Host "   python manage.py runserver"
 Write-Host ""
 Write-Host "2. Open another new PowerShell terminal and run the frontend server:"
