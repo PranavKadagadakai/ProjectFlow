@@ -31,6 +31,8 @@ AWS_SES_SOURCE_EMAIL=your-verified-email@example.com
 AWS_DYNAMODB_REGION=us-east-1
 # For local DynamoDB, uncomment the next line:
 # AWS_DYNAMODB_ENDPOINT_URL=http://localhost:8000
+DYNAMODB_READ_CAPACITY=1
+DYNAMODB_WRITE_CAPACITY=1
 
 # DynamoDB Table Names
 DYNAMODB_PROJECTS_TABLE=ProjectFlow_Projects

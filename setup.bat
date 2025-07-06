@@ -29,6 +29,8 @@ if not exist "BackEnd\.env" (
         echo AWS_DYNAMODB_REGION=us-east-1
         echo # For local DynamoDB, uncomment the next line:
         echo # AWS_DYNAMODB_ENDPOINT_URL=http://localhost:8000
+        echo DYNAMODB_READ_CAPACITY=1
+        echo DYNAMODB_WRITE_CAPACITY=1
         echo.
         echo # DynamoDB Table Names
         echo DYNAMODB_PROJECTS_TABLE=ProjectFlow_Projects
