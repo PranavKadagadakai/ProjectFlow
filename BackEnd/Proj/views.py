@@ -11,7 +11,8 @@ from .serializers import (
     ProjectSerializer, SubmissionSerializer, RubricSerializer, EvaluationSerializer, UserProfileSerializer
 )
 from .utils import send_email_ses
-from ml_evaluator.evaluator import simulate_ml_evaluation
+# UPDATED: Import the new Gemini-based evaluator
+from ml_evaluator.evaluator import get_ai_evaluation
 
 # --- Helper Functions ---
 def get_submission_and_check_permission(submission_id, request):
@@ -86,7 +87,6 @@ class ProjectDetailView(APIView):
     def get_object(self, project_id, request_user):
         try:
             project = ProjectModel.get(project_id)
-            # FIX: Access the request method via self.request.method
             if self.request.method != 'GET' and project.created_by_username != request_user.username:
                  raise PermissionDenied("You do not have permission to modify this project.")
             return project
@@ -112,7 +112,7 @@ class SubmissionListCreateView(APIView):
 
     def post(self, request):
         if request.user.is_staff:
-            raise PermissionDenied("Only faculty can create submissions.")
+            raise PermissionDenied("Only students can create submissions.")
 
         serializer = SubmissionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -157,7 +157,7 @@ class SubmissionListCreateView(APIView):
         return Response(SubmissionSerializer(submission).data, status=status.HTTP_201_CREATED)
 
 class MySubmissionsListView(APIView):
-    """List all submissions for the currently authenticated student."""
+    """List all submissions for the currently authenticated student or all for faculty."""
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -288,7 +288,7 @@ class EvaluationListCreateView(APIView):
         return Response(EvaluationSerializer(refreshed_evaluation).data, status=status.HTTP_201_CREATED)
 
 class TriggerAIEvaluationView(APIView):
-    """Triggers the ML model to evaluate a submission and returns the scores."""
+    """Triggers the Gemini model to evaluate a submission and returns the scores."""
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, submission_id):
@@ -302,10 +302,23 @@ class TriggerAIEvaluationView(APIView):
                 {"detail": "Submission has no text content to analyze."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            
-        ml_results = simulate_ml_evaluation(submission.report_content_summary)
         
+        # Fetch the rubrics for the project to provide context to the AI
+        rubrics = list(RubricModel.project_index.query(submission.project_id))
+        if not rubrics:
+            return Response(
+                {"detail": "This project has no rubrics defined. AI evaluation cannot proceed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Call the new Gemini-based evaluator
+        ml_results = get_ai_evaluation(submission.report_content_summary, rubrics)
+        
+        if "error" in ml_results:
+            return Response({"detail": ml_results["error"]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         return Response(ml_results, status=status.HTTP_200_OK)
+
 
 class FinalizeEvaluationView(APIView):
     """Finalizes an evaluation, runs ML model, calculates final score."""
@@ -323,9 +336,22 @@ class FinalizeEvaluationView(APIView):
             
         total_manual_score = sum(e.points_awarded for e in evaluations)
 
-        ml_results = simulate_ml_evaluation(submission.report_content_summary or "")
-        total_ml_score = sum(ml_results.values())
+        # Fetch rubrics to pass to the AI evaluator
+        rubrics = list(RubricModel.project_index.query(submission.project_id))
+        if not rubrics:
+            return Response(
+                {"detail": "This project has no rubrics defined. AI evaluation cannot proceed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        ml_results = get_ai_evaluation(submission.report_content_summary or "", rubrics)
         
+        if "error" in ml_results:
+            return Response({"detail": ml_results["error"]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Extract only the scores from the structured AI response
+        total_ml_score = sum(v for k, v in ml_results.items() if k.endswith('_score'))
+
         weight = settings.ML_SCORE_WEIGHT
         final_score = (total_manual_score * (1 - weight)) + (total_ml_score * weight)
         

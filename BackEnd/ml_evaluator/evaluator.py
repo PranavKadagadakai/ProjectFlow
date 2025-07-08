@@ -1,72 +1,69 @@
-import nltk
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-import re
+import os
+import google.generativeai as genai
+import json
+from django.conf import settings
 
-# --- NLTK Initialization ---
-def initialize_nltk():
+def get_ai_evaluation(text_content, rubrics):
     """
-    Downloads necessary NLTK data models.
-    This is called once when the Django app starts.
-    """
-    try:
-        nltk.data.find('tokenizers/punkt')
-        nltk.data.find('corpora/stopwords')
-    except nltk.downloader.DownloadError:
-        print("Downloading NLTK data (punkt, stopwords)...")
-        nltk.download('punkt', quiet=True)
-        nltk.download('stopwords', quiet=True)
-        print("NLTK data downloaded.")
+    Evaluates project text content against a set of rubrics using the Gemini API.
 
-# --- ML Model Simulation ---
-
-def preprocess_text(text):
-    """
-    Cleans and tokenizes text for analysis.
-    - Converts to lowercase
-    - Removes punctuation and numbers
-    - Removes common English stop words
-    """
-    if not text:
-        return []
-    text = text.lower()
-    text = re.sub(r'\d+', '', text) # Remove numbers
-    text = re.sub(r'[^\w\s]', '', text) # Remove punctuation
-    tokens = word_tokenize(text)
-    stop_words = set(stopwords.words('english'))
-    filtered_tokens = [word for word in tokens if word not in stop_words]
-    return filtered_tokens
-
-def simulate_ml_evaluation(text_content):
-    """
-    Simulates an ML model that scores a project submission based on keywords.
-    
-    This function mimics a simple NLP model by counting words related to 
-    different evaluation criteria (quality, innovation, impact).
-    
     Args:
         text_content (str): The summary or content of the project report.
+        rubrics (list of RubricModel): A list of PynamoDB rubric models for the project.
 
     Returns:
-        dict: A dictionary with scores for each criterion.
+        dict: A dictionary containing scores and feedback for each rubric criterion,
+              or an error message.
     """
-    tokens = preprocess_text(text_content)
-    
-    # Define keywords for each evaluation criterion
-    # These mimic the features an actual ML model might learn to associate with these concepts.
-    keyword_map = {
-        'quality': ['comprehensive', 'thorough', 'robust', 'well-structured', 'clear', 'detailed', 'analysis', 'testing'],
-        'innovation': ['novel', 'innovative', 'creative', 'unique', 'breakthrough', 'paradigm', 'new', 'advanced'],
-        'impact': ['impactful', 'significant', 'potential', 'useful', 'effective', 'scalable', 'application', 'benefit']
-    }
-    
-    scores = {'quality': 0, 'innovation': 0, 'impact': 0}
-    max_score_per_criterion = 33 # Distribute ~100 points across 3 criteria
-    
-    for criterion, keywords in keyword_map.items():
-        # Score is based on the number of unique keywords found, capped to avoid simple keyword stuffing.
-        found_keywords = {word for word in tokens if word in keywords}
-        score = len(found_keywords) * (max_score_per_criterion / len(keywords))
-        scores[criterion] = min(round(score, 2), max_score_per_criterion)
+    api_key = settings.GEMINI_API_KEY
+    if not api_key:
+        return {"error": "Gemini API key is not configured."}
 
-    return scores
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+
+        # Dynamically build the rubric and JSON schema description for the prompt
+        rubric_details = ""
+        json_properties = {}
+        for rubric in rubrics:
+            criterion_key = rubric.criterion.lower().replace(" ", "_")
+            rubric_details += f"- **{rubric.criterion} (Max Points: {rubric.max_points})**: {rubric.description}\n"
+            json_properties[f"{criterion_key}_score"] = {"type": "number", "description": f"Score for {rubric.criterion} from 0 to {rubric.max_points}."}
+            json_properties[f"{criterion_key}_feedback"] = {"type": "string", "description": f"Constructive feedback for {rubric.criterion}."}
+
+        # Construct the detailed prompt
+        prompt = f"""
+        As an expert academic evaluator, please assess the following project summary based on the provided rubrics.
+        Provide a score and constructive feedback for each criterion.
+        Your response MUST be a valid JSON object.
+
+        **Project Summary:**
+        ---
+        {text_content}
+        ---
+
+        **Evaluation Rubrics:**
+        {rubric_details}
+
+        **Instructions:**
+        1. Read the project summary carefully.
+        2. For each rubric criterion, assign a score from 0 up to the maximum points allowed for that criterion.
+        3. Provide brief, specific, and constructive feedback for each criterion, explaining your reasoning for the score.
+        4. Your final output must be a single JSON object with the following structure:
+        {json.dumps(json_properties, indent=2)}
+        """
+
+        # Generate content using the Gemini API
+        response = model.generate_content(prompt)
+        
+        # Clean the response to extract only the JSON part
+        cleaned_response_text = response.text.strip().replace("```json", "").replace("```", "").strip()
+        
+        # Parse the JSON response
+        evaluation_result = json.loads(cleaned_response_text)
+        return evaluation_result
+
+    except Exception as e:
+        print(f"An error occurred during AI evaluation: {e}")
+        return {"error": f"Failed to get evaluation from AI model. Details: {str(e)}"}
