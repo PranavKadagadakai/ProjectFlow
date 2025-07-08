@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import api from "../api/api";
 import { useNavigate } from "react-router-dom";
-import { uploadData } from "aws-amplify/storage"; // For S3 uploads
-import useAuth from "../hooks/useAuth"; // To get user details for S3 path
+import useAuth from "../hooks/useAuth";
 
 const SubmitProjectPage = () => {
   const { user, isAuthenticated } = useAuth(); // Assuming user has 'username'
@@ -10,14 +9,12 @@ const SubmitProjectPage = () => {
 
   const [formData, setFormData] = useState({
     project_id: "",
-    title: "", // Student's submission title
-    report_content_summary: "", // Text summary for AI evaluation
+    title: "", // Student's submission title - MANDATORY
     github_link: "",
-    youtube_link: "",
   });
 
-  const [projectReportFile, setProjectReportFile] = useState(null); // For PDF upload
-  const [sourceCodeFile, setSourceCodeFile] = useState(null); // For ZIP upload
+  const [projectReportFile, setProjectReportFile] = useState(null); // For PDF upload - MANDATORY
+  const [sourceCodeFile, setSourceCodeFile] = useState(null); // For ZIP upload - MANDATORY (conditionally)
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -65,6 +62,20 @@ const SubmitProjectPage = () => {
       return;
     }
 
+    if (!formData.title.trim()) {
+      setMessage("Project Title is mandatory.");
+      setIsError(true);
+      setLoading(false);
+      return;
+    }
+
+    if (!projectReportFile) {
+      setMessage("Project Report (PDF) is mandatory.");
+      setIsError(true);
+      setLoading(false);
+      return;
+    }
+
     // Validation for GitHub link vs. Source Code File
     if (!formData.github_link && !sourceCodeFile) {
       setMessage(
@@ -83,54 +94,29 @@ const SubmitProjectPage = () => {
       return;
     }
 
-    let reportFileS3Key = null;
-    let sourceCodeFileS3Key = null;
+    // Create FormData object to send files to Django backend
+    const data = new FormData();
+    data.append("project_id", formData.project_id);
+    data.append("title", formData.title);
+    // UPDATED: Explicitly pass filename for report file
+    data.append("report_file", projectReportFile, projectReportFile.name);
+
+    if (formData.github_link) {
+      data.append("github_link", formData.github_link);
+    }
+    if (sourceCodeFile) {
+      // UPDATED: Explicitly pass filename for source code file
+      data.append("source_code_file", sourceCodeFile, sourceCodeFile.name);
+    }
 
     try {
-      // 1. Upload Project Report (PDF) to S3
-      if (projectReportFile) {
-        const reportFileName = `reports/${user.username}/${Date.now()}-${
-          projectReportFile.name
-        }`;
-        const result = await uploadData({
-          path: reportFileName,
-          data: projectReportFile,
-          options: {
-            contentType: projectReportFile.type,
-          },
-        }).result;
-        reportFileS3Key = result.path; // S3 key
-        console.log("Project report uploaded:", reportFileS3Key);
-      }
+      // Send FormData with files to the backend
+      const response = await api.post("/api/submissions/", data, {
+        headers: {
+          "Content-Type": "multipart/form-data", // Important for file uploads
+        },
+      });
 
-      // 2. Upload Source Code (ZIP) to S3
-      if (sourceCodeFile) {
-        const sourceCodeFileName = `source-code/${
-          user.username
-        }/${Date.now()}-${sourceCodeFile.name}`;
-        const result = await uploadData({
-          path: sourceCodeFileName,
-          data: sourceCodeFile,
-          options: {
-            contentType: sourceCodeFile.type,
-          },
-        }).result;
-        sourceCodeFileS3Key = result.path; // S3 key
-        console.log("Source code uploaded:", sourceCodeFileS3Key);
-      }
-
-      // 3. Prepare data for Django Backend
-      const submissionData = {
-        project_id: formData.project_id,
-        title: formData.title, // Student's specific title for this submission
-        report_content_summary: formData.report_content_summary,
-        report_file_s3_key: reportFileS3Key, // Pass S3 key if file was uploaded
-        github_link: formData.github_link || null, // Pass null if empty
-        source_code_file_s3_key: sourceCodeFileS3Key, // Pass S3 key if file was uploaded
-        youtube_link: formData.youtube_link || null, // Pass null if empty
-      };
-
-      const response = await api.post("/api/submissions/", submissionData);
       setMessage("Project submitted successfully! Redirecting...");
       console.log("Django API response:", response.data);
 
@@ -138,9 +124,7 @@ const SubmitProjectPage = () => {
       setFormData({
         project_id: "",
         title: "",
-        report_content_summary: "",
         github_link: "",
-        youtube_link: "",
       });
       setProjectReportFile(null);
       setSourceCodeFile(null);
@@ -199,7 +183,7 @@ const SubmitProjectPage = () => {
 
         <div className="mb-3">
           <label htmlFor="title" className="form-label">
-            Submission Title
+            Project Title (for your submission)
           </label>
           <input
             type="text"
@@ -215,7 +199,7 @@ const SubmitProjectPage = () => {
 
         <div className="mb-3">
           <label htmlFor="projectReportFile" className="form-label">
-            Project Report (PDF)
+            Project Report (PDF) <span className="text-danger">*</span>
           </label>
           <input
             type="file"
@@ -223,36 +207,17 @@ const SubmitProjectPage = () => {
             id="projectReportFile"
             accept=".pdf"
             onChange={(e) => handleFileChange(e, setProjectReportFile)}
+            required // Made mandatory
           />
           <div className="form-text">
-            Upload your detailed project report as a PDF.
-          </div>
-        </div>
-
-        <div className="mb-3">
-          <label htmlFor="report_content_summary" className="form-label">
-            Project Report Summary (for AI Evaluation)
-          </label>
-          <textarea
-            className="form-control"
-            id="report_content_summary"
-            name="report_content_summary"
-            rows="8"
-            value={formData.report_content_summary}
-            onChange={handleChange}
-            required
-            placeholder="Paste a detailed summary of your project report here. This text will be analyzed by the automated evaluation model."
-          ></textarea>
-          <div className="form-text">
-            Provide a comprehensive summary (min 200 words recommended) of your
-            project, including objectives, methodology, results, and
-            conclusions.
+            Upload your detailed project report as a PDF. This will be used for
+            evaluation.
           </div>
         </div>
 
         <div className="mb-3">
           <label htmlFor="github_link" className="form-label">
-            GitHub Repository Link (Optional)
+            GitHub Repository Link (Mandatory if no ZIP file)
           </label>
           <input
             type="url"
@@ -275,7 +240,7 @@ const SubmitProjectPage = () => {
 
         <div className="mb-3">
           <label htmlFor="sourceCodeFile" className="form-label">
-            Upload Project Source Code (ZIP) (Optional)
+            Upload Project Source Code (ZIP) (Mandatory if no GitHub URL)
           </label>
           <input
             type="file"
@@ -290,28 +255,15 @@ const SubmitProjectPage = () => {
           </div>
         </div>
 
-        <div className="mb-3">
-          <label htmlFor="youtube_link" className="form-label">
-            YouTube Demo Video Link (Optional)
-          </label>
-          <input
-            type="url"
-            className="form-control"
-            id="youtube_link"
-            name="youtube_link"
-            value={formData.youtube_link}
-            onChange={handleChange}
-            placeholder="https://youtube.com/watch?v=..."
-          />
-          <div className="form-text">
-            Provide a link to a demo video of your project.
-          </div>
-        </div>
-
         <button
           type="submit"
           className="btn btn-primary w-100"
-          disabled={loading || (!formData.github_link && !sourceCodeFile)}
+          disabled={
+            loading ||
+            (!formData.github_link && !sourceCodeFile) ||
+            !projectReportFile ||
+            !formData.title.trim()
+          }
         >
           {loading ? "Submitting..." : "Submit Project"}
         </button>

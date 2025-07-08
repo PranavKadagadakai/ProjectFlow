@@ -7,7 +7,7 @@ For more information on this file, see
 https://docs.djangoproject.com/en/5.2/topics/settings/
 
 For the full list of settings and their values, see
-https://docs.djangoproject.com/en/5.2/ref/settings/
+https://docs.djangoproject.com/en/5.2/ref/settings/#f
 """
 
 from pathlib import Path
@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
-    'storages',
+    # 'storages', # Removed as we are no longer using S3 storage
     'Proj',
     'ml_evaluator',
 ]
@@ -127,7 +127,7 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+# https://docs.djangoproject.com/en/5.2/topics/static-files/
 
 STATIC_URL = 'static/'
 
@@ -169,43 +169,24 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# AWS Cognito
+# AWS Cognito - Still needed for authentication
 COGNITO_REGION = os.getenv('AWS_COGNITO_REGION', 'us-east-1')
 COGNITO_USER_POOL_ID = os.getenv('AWS_COGNITO_USER_POOL_ID')
 COGNITO_APP_CLIENT_ID = os.getenv('AWS_COGNITO_APP_CLIENT_ID')
+# Removed AWS_COGNITO_IDENTITY_POOL_ID as it's not directly used by Django backend
 
-# AWS S3 Settings for django-storages
+# Removed AWS S3 Settings for django-storages
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
-AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', COGNITO_REGION) # Use Cognito region as default for S3
+# AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+# AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', COGNITO_REGION)
 
-# Configure default file storage to S3Boto3Storage
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-PUBLIC_MEDIA_LOCATION = 'media/public' # Optional: for public files
-MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/{PUBLIC_MEDIA_LOCATION}/'
-STORAGES = { # For Django 4.2+
-    "default": {
-        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        "OPTIONS": {
-            "location": PUBLIC_MEDIA_LOCATION,
-        },
-    },
-    "staticfiles": { # If you also want to serve static files from S3
-        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        "OPTIONS": {
-            "location": "static",
-        },
-    },
-}
-
-# For older Django versions or simplified setup, just using DEFAULT_FILE_STORAGE is fine.
-# Media files will be uploaded to the root of the specified S3 bucket
+# Configure Local File Storage
+# DEFAULT_FILE_STORAGE is implicitly 'django.core.files.storage.FileSystemStorage'
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # Django needs a MEDIA_ROOT defined, even if using S3
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # Files will be stored here
 
-
-# AWS SES Settings
+# AWS SES Settings - Still needed for email notifications
 AWS_SES_REGION_NAME = os.getenv('AWS_SES_REGION_NAME', COGNITO_REGION)
 AWS_SES_SOURCE_EMAIL = os.getenv('AWS_SES_SOURCE_EMAIL') # Verified email address in SES
 
@@ -215,7 +196,7 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'staticfiles', 'frontend_build'),
 ]
 
-# DynamoDB Settings (for PynamoDB)
+# DynamoDB Settings (for PynamoDB) - Still needed for database
 DYNAMODB_REGION = os.getenv('AWS_DYNAMODB_REGION', COGNITO_REGION)
 # DYNAMODB_HOST = os.getenv('AWS_DYNAMODB_ENDPOINT_URL') # For local DynamoDB (e.g., 'http://localhost:8000')
 DYNAMODB_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID') # Reuse main AWS keys

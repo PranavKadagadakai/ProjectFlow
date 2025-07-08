@@ -12,7 +12,7 @@ from .serializers import (
 )
 from .utils import send_email_ses
 from ml_evaluator.evaluator import get_ai_evaluation
-from Proj.pdf_extractor import extract_text_from_s3_pdf # NEW IMPORT
+from Proj.pdf_extractor import extract_text_from_local_pdf # UPDATED IMPORT
 
 # --- Helper Functions ---
 def get_submission_and_check_permission(submission_id, request):
@@ -114,7 +114,8 @@ class SubmissionListCreateView(APIView):
         if request.user.is_staff:
             raise PermissionDenied("Only students can create submissions.")
 
-        serializer = SubmissionSerializer(data=request.data)
+        # Pass request context to serializer for file saving and username
+        serializer = SubmissionSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         
         project_id = serializer.validated_data['project_id']
@@ -126,15 +127,8 @@ class SubmissionListCreateView(APIView):
         if project.end_date < date.today():
             raise ValidationError("The submission deadline for this project has passed. No more submissions are allowed.")
 
-        # NEW VALIDATION: At least one of github_link or source_code_file_s3_key must be provided
-        github_link = serializer.validated_data.get('github_link')
-        source_code_file_s3_key = serializer.validated_data.get('source_code_file_s3_key')
-
-        if not github_link and not source_code_file_s3_key:
-            raise ValidationError("Either a GitHub link or a source code ZIP file must be provided.")
-        if github_link and source_code_file_s3_key:
-            raise ValidationError("Cannot provide both a GitHub link and a source code ZIP file. Please choose one.")
-
+        # Validation for GitHub link vs. Source Code File is now handled in serializer's validate method
+        
         existing_submissions = list(SubmissionModel.project_student_index.query(
             hash_key=project_id,
             range_key_condition=SubmissionModel.student_username == request.user.username
@@ -157,8 +151,9 @@ class SubmissionListCreateView(APIView):
         )
 
         # NEW: Extract text from PDF report and save it to the submission
-        if submission.report_file_s3_key:
-            extracted_text = extract_text_from_s3_pdf(submission.report_file_s3_key)
+        # Use the local file path stored by the serializer
+        if submission.report_file_path:
+            extracted_text = extract_text_from_local_pdf(submission.report_file_path)
             if extracted_text:
                 submission.update(actions=[
                     SubmissionModel.report_content_summary.set(extracted_text)

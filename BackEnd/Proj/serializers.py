@@ -56,11 +56,11 @@ class SubmissionSerializer(serializers.Serializer):
     submission_id = serializers.CharField(read_only=True)
     project_id = serializers.CharField()
     student_username = serializers.CharField(read_only=True)
-    title = serializers.CharField(max_length=255) # Student's specific title for this submission
-    report_file_s3_key = serializers.CharField(required=False, allow_blank=True, allow_null=True) # Made writable
-    report_content_summary = serializers.CharField(required=False, allow_blank=True)
+    title = serializers.CharField(max_length=255, required=True) # Student's specific title for this submission - NOW REQUIRED
+    report_file_s3_key = serializers.CharField(required=True, allow_blank=False, allow_null=False) # NOW REQUIRED
+    report_content_summary = serializers.CharField(read_only=True) # Removed from direct input, will be extracted
     github_link = serializers.URLField(required=False, allow_blank=True, allow_null=True)
-    youtube_link = serializers.URLField(required=False, allow_blank=True, allow_null=True)
+    # youtube_link = serializers.URLField(required=False, allow_blank=True, allow_null=True) # REMOVED
     source_code_file_s3_key = serializers.CharField(required=False, allow_blank=True, allow_null=True) # NEW FIELD
     submitted_at = serializers.DateTimeField(read_only=True)
     status = serializers.CharField(read_only=True)
@@ -69,6 +69,26 @@ class SubmissionSerializer(serializers.Serializer):
     overall_score = serializers.FloatField(read_only=True, required=False)
     version = serializers.IntegerField(read_only=True)
     is_latest = serializers.BooleanField(read_only=True)
+
+    def validate(self, data):
+        # Ensure at least one of github_link or source_code_file_s3_key is provided
+        github_link = data.get('github_link')
+        source_code_file_s3_key = data.get('source_code_file_s3_key')
+
+        if not github_link and not source_code_file_s3_key:
+            raise serializers.ValidationError(
+                "Either a GitHub link or a source code ZIP file must be provided."
+            )
+        if github_link and source_code_file_s3_key:
+            raise serializers.ValidationError(
+                "Cannot provide both a GitHub link and a source code ZIP file. Please choose one."
+            )
+        
+        # Ensure report_file_s3_key is not empty if provided (though it's required=True now)
+        if not data.get('report_file_s3_key'):
+             raise serializers.ValidationError("Project Report (PDF) is mandatory.")
+
+        return data
 
     def create(self, validated_data):
         submission = SubmissionModel(**validated_data)
