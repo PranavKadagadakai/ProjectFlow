@@ -79,6 +79,16 @@ const EvaluateSubmissionPage = () => {
   if (!submission)
     return <div className="alert alert-warning">No submission found.</div>;
 
+  // Function to format the key into a readable title
+  const formatCriterionTitle = (key) => {
+    return key
+      .replace("_score", "")
+      .replace(/_/g, " ")
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
+
   return (
     <div className="container">
       <h2 className="mb-3">Evaluating Submission</h2>
@@ -117,15 +127,49 @@ const EvaluateSubmissionPage = () => {
             <div className="card-header">AI-Assisted Evaluation</div>
             <div className="card-body">
               {aiScores ? (
-                <div className="row text-center">
-                  {Object.entries(aiScores).map(([key, value]) => (
-                    <div className="col-md-4" key={key}>
-                      <h5>{key.charAt(0).toUpperCase() + key.slice(1)}</h5>
-                      <p className="display-6">{value.toFixed(2)}</p>
-                    </div>
-                  ))}
+                // MODIFICATION START
+                <div className="row">
+                  {Object.keys(aiScores)
+                    .filter((key) => key.endsWith("_score")) // Get only score keys
+                    .map((scoreKey) => {
+                      const baseName = scoreKey.replace("_score", ""); // e.g., 'ai', 'innovation'
+                      const scoreData = aiScores[scoreKey];
+                      const feedbackData = aiScores[`${baseName}_feedback`];
+
+                      // Ensure scoreData and feedbackData exist and have a 'value' property
+                      const score =
+                        typeof scoreData?.value === "number"
+                          ? scoreData.value
+                          : null;
+                      const feedback =
+                        typeof feedbackData?.value === "string"
+                          ? feedbackData.value
+                          : "No feedback provided.";
+
+                      return (
+                        <div className="col-md-6 mb-3" key={scoreKey}>
+                          {" "}
+                          {/* Changed to col-md-6 for better layout with feedback */}
+                          <div className="card h-100">
+                            {" "}
+                            {/* Added card for each criterion */}
+                            <div className="card-body">
+                              <h5 className="card-title">
+                                {formatCriterionTitle(scoreKey)}
+                              </h5>
+                              <p className="display-6">
+                                {score !== null ? score.toFixed(2) : "N/A"}
+                              </p>
+                              <h6>AI Feedback:</h6>
+                              <p className="card-text text-muted">{feedback}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               ) : (
+                // MODIFICATION END
                 <div className="text-center">
                   <p>
                     Click the button to get an AI-generated score suggestion
