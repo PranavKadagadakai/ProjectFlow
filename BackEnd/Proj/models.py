@@ -1,6 +1,6 @@
 from pynamodb.models import Model
 from pynamodb.attributes import (
-    UnicodeAttribute, UTCDateTimeAttribute, BooleanAttribute, 
+    UnicodeAttribute, UTCDateTimeAttribute, BooleanAttribute,
     NumberAttribute, MapAttribute
 )
 from pynamodb.indexes import GlobalSecondaryIndex, AllProjection
@@ -32,9 +32,18 @@ class BaseMeta:
     region = settings.DYNAMODB_REGION
     aws_access_key_id = settings.AWS_ACCESS_KEY_ID
     aws_secret_access_key = settings.AWS_SECRET_ACCESS_KEY
-    # Use local DynamoDB for development if DYNAMODB_HOST is set
-    # if settings.DYNAMODB_HOST:
-    #     host = settings.DYNAMODB_HOST
+
+# NEW: UserProfile Model
+class UserProfileModel(Model):
+    """Represents user profile information in DynamoDB."""
+    class Meta(BaseMeta):
+        table_name = settings.DYNAMODB_USER_PROFILES_TABLE
+
+    username = UnicodeAttribute(hash_key=True)
+    full_name = UnicodeAttribute(null=True)
+    bio = UnicodeAttribute(null=True)
+    profile_picture_url = UnicodeAttribute(null=True)
+    updated_at = UTCDateTimeAttribute(default=datetime.utcnow)
 
 class ProjectModel(Model):
     """Represents an academic project in DynamoDB."""
@@ -60,17 +69,15 @@ class SubmissionModel(Model):
         class Meta(BaseMeta):
             index_name = 'project_student_index'
             projection = AllProjection()
-            # FIX: Added read and write capacity for the GSI
             read_capacity_units = 1
             write_capacity_units = 1
         project_id = UnicodeAttribute(hash_key=True)
         student_username = UnicodeAttribute(range_key=True)
-    
+
     class StudentIndex(GlobalSecondaryIndex):
         class Meta(BaseMeta):
             index_name = 'student_index'
             projection = AllProjection()
-            # FIX: Added read and write capacity for the GSI
             read_capacity_units = 1
             write_capacity_units = 1
         student_username = UnicodeAttribute(hash_key=True)
@@ -86,11 +93,14 @@ class SubmissionModel(Model):
     submitted_at = UTCDateTimeAttribute(default=datetime.utcnow)
     status = UnicodeAttribute(default='Submitted') # e.g., 'Submitted', 'Under Evaluation', 'Evaluated'
     
-    # New fields for storing final scores
+    # UPDATED: Add version number for submission attempts
+    version = NumberAttribute(default=1)
+    is_latest = BooleanAttribute(default=True)
+
     manual_score = NumberAttribute(null=True)
     ml_score = NumberAttribute(null=True)
     overall_score = NumberAttribute(null=True)
-    
+
     project_student_index = ProjectStudentIndex()
     student_index = StudentIndex()
 
@@ -103,14 +113,13 @@ class RubricModel(Model):
         class Meta(BaseMeta):
             index_name = 'project_index'
             projection = AllProjection()
-            # FIX: Added read and write capacity for the GSI
             read_capacity_units = 1
             write_capacity_units = 1
         project_id = UnicodeAttribute(hash_key=True)
 
     rubric_id = UnicodeAttribute(hash_key=True, default=lambda: str(uuid4()))
     project_id = UnicodeAttribute()
-    criterion = UnicodeAttribute() # E.g., 'Innovation', 'Quality', 'Impact'
+    criterion = UnicodeAttribute()
     max_points = NumberAttribute()
     description = UnicodeAttribute(null=True)
     
@@ -125,7 +134,6 @@ class EvaluationModel(Model):
         class Meta(BaseMeta):
             index_name = 'submission_index'
             projection = AllProjection()
-            # FIX: Added read and write capacity for the GSI
             read_capacity_units = 1
             write_capacity_units = 1
         submission_id = UnicodeAttribute(hash_key=True)
@@ -138,7 +146,6 @@ class EvaluationModel(Model):
     feedback = UnicodeAttribute(null=True)
     evaluated_at = UTCDateTimeAttribute(default=datetime.utcnow)
 
-    # New fields to store ML scores for comparison, if evaluated per criterion
     ml_points_awarded = NumberAttribute(null=True)
     ml_feedback = UnicodeAttribute(null=True)
     

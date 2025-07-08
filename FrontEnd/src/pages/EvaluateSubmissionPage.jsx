@@ -1,6 +1,5 @@
-// FrontEnd/src/pages/EvaluateSubmissionPage.jsx
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import api from "../api/api";
 
 const EvaluateSubmissionPage = () => {
@@ -8,11 +7,12 @@ const EvaluateSubmissionPage = () => {
   const [submission, setSubmission] = useState(null);
   const [rubrics, setRubrics] = useState([]);
   const [evaluations, setEvaluations] = useState([]);
+  const [aiScores, setAiScores] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
     try {
       const subRes = await api.get(`/api/submissions/${submissionId}/`);
       setSubmission(subRes.data);
@@ -28,6 +28,7 @@ const EvaluateSubmissionPage = () => {
       setEvaluations(evalsRes.data);
     } catch (err) {
       setError("Failed to load submission data.");
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -37,10 +38,25 @@ const EvaluateSubmissionPage = () => {
     fetchData();
   }, [fetchData]);
 
+  const handleTriggerAI = async () => {
+    setAiLoading(true);
+    setError("");
+    try {
+      const res = await api.post(
+        `/api/submissions/${submissionId}/trigger_ai_evaluation/`
+      );
+      setAiScores(res.data);
+    } catch (err) {
+      setError(err.response?.data?.detail || "Failed to run AI evaluation.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const handleFinalize = async () => {
     if (
       !window.confirm(
-        "Are you sure you want to finalize this evaluation? This will calculate the final score and cannot be undone."
+        "Are you sure you want to finalize this evaluation? This will calculate the final score."
       )
     ) {
       return;
@@ -56,53 +72,40 @@ const EvaluateSubmissionPage = () => {
     }
   };
 
-  if (loading) return <p>Loading evaluation details...</p>;
-  if (error) return <div className="alert alert-danger">{error}</div>;
-  if (!submission) return <p>No submission found.</p>;
+  if (loading)
+    return <div className="text-center">Loading evaluation details...</div>;
+  if (error && !aiLoading)
+    return <div className="alert alert-danger">{error}</div>;
+  if (!submission)
+    return <div className="alert alert-warning">No submission found.</div>;
 
   return (
     <div className="container">
       <h2 className="mb-3">Evaluating Submission</h2>
       <div className="card mb-4">
-        <div className="card-header">Submission Details</div>
+        <div className="card-header d-flex justify-content-between align-items-center">
+          Submission Details
+          <span
+            className={`badge bg-${
+              submission.status === "Evaluated" ? "success" : "warning"
+            }`}
+          >
+            {submission.status}
+          </span>
+        </div>
         <div className="card-body">
           <p>
             <strong>Student:</strong> {submission.student_username}
           </p>
           <p>
-            <strong>Status:</strong>{" "}
-            <span
-              className={`badge bg-${
-                submission.status === "Evaluated" ? "success" : "warning"
-              }`}
-            >
-              {submission.status}
-            </span>
+            <strong>Version:</strong> {submission.version}
           </p>
-          {submission.github_link && (
-            <p>
-              <strong>GitHub:</strong>{" "}
-              <a
-                href={submission.github_link}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {submission.github_link}
-              </a>
-            </p>
-          )}
-          {submission.youtube_link && (
-            <p>
-              <strong>YouTube:</strong>{" "}
-              <a
-                href={submission.youtube_link}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {submission.youtube_link}
-              </a>
-            </p>
-          )}
+          <p>
+            <strong>Summary:</strong>
+          </p>
+          <p className="bg-light p-3 rounded">
+            {submission.report_content_summary || "No summary provided."}
+          </p>
         </div>
       </div>
 
@@ -110,6 +113,47 @@ const EvaluateSubmissionPage = () => {
         <FinalScores submission={submission} />
       ) : (
         <>
+          <div className="card mb-4">
+            <div className="card-header">AI-Assisted Evaluation</div>
+            <div className="card-body">
+              {aiScores ? (
+                <div className="row text-center">
+                  {Object.entries(aiScores).map(([key, value]) => (
+                    <div className="col-md-4" key={key}>
+                      <h5>{key.charAt(0).toUpperCase() + key.slice(1)}</h5>
+                      <p className="display-6">{value.toFixed(2)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p>
+                    Click the button to get an AI-generated score suggestion
+                    based on the submission summary.
+                  </p>
+                  <button
+                    className="btn btn-info"
+                    onClick={handleTriggerAI}
+                    disabled={aiLoading}
+                  >
+                    {aiLoading ? (
+                      <span
+                        className="spinner-border spinner-border-sm"
+                        role="status"
+                        aria-hidden="true"
+                      ></span>
+                    ) : (
+                      "Evaluate with AI"
+                    )}
+                  </button>
+                  {error && aiLoading && (
+                    <div className="alert alert-danger mt-3">{error}</div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           <ManualEvaluationForm
             rubrics={rubrics}
             evaluations={evaluations}
@@ -144,6 +188,7 @@ const ManualEvaluationForm = ({
 }) => {
   const [points, setPoints] = useState({});
   const [feedback, setFeedback] = useState({});
+  const [error, setError] = useState("");
 
   const handleScoreChange = (rubricId, value) =>
     setPoints((prev) => ({ ...prev, [rubricId]: value }));
@@ -151,22 +196,32 @@ const ManualEvaluationForm = ({
     setFeedback((prev) => ({ ...prev, [rubricId]: value }));
 
   const handleSubmit = async (rubric) => {
+    setError("");
     const payload = {
       rubric_id: rubric.rubric_id,
       points_awarded: parseInt(points[rubric.rubric_id], 10),
       feedback: feedback[rubric.rubric_id] || "",
     };
+
+    if (isNaN(payload.points_awarded)) {
+      alert("Please enter a valid score.");
+      return;
+    }
+
     try {
       await api.post(`/api/submissions/${submissionId}/evaluations/`, payload);
       onEvaluationSuccess(); // Refresh parent component data
-    } catch (error) {
-      alert(`Error saving evaluation: ${error.response?.data?.detail}`);
+    } catch (err) {
+      setError(
+        `Error saving evaluation: ${err.response?.data?.detail || err.message}`
+      );
     }
   };
 
   return (
     <div className="card">
       <div className="card-header">Manual Scoring</div>
+      {error && <div className="alert alert-danger m-3">{error}</div>}
       <ul className="list-group list-group-flush">
         {rubrics.map((rubric) => {
           const existingEval = evaluations.find(

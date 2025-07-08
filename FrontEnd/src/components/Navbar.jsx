@@ -1,40 +1,32 @@
-// FrontEnd/src/components/Navbar.jsx
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
-import { useTheme } from "../contexts/ThemeContext"; // Import useTheme
+import { useTheme } from "../contexts/ThemeContext";
 
 const Navbar = () => {
   const { isAuthenticated, user, signOut } = useAuth();
-  const { theme, toggleTheme } = useTheme(); // Use theme context
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
-  // Handler for signing out, includes navigation redirection
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate("/login"); // Redirect to login page after successful sign out
+      navigate("/login");
     } catch (error) {
       console.error("Error signing out:", error);
-      // Optionally display an error message to the user
     }
   };
 
-  // Determine if the user has a faculty or administrator role
   const isFacultyOrAdmin =
     user?.role === "faculty" || user?.role === "administrator";
   const isStudent = user?.role === "student";
 
   return (
-    // Navbar using Bootstrap classes, background color dynamically set by CSS variables
     <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
       <div className="container-fluid">
-        {/* Brand/Logo Link */}
         <Link className="navbar-brand" to="/">
-          Project Portal
+          ProjectFlow
         </Link>
-
-        {/* Toggler for responsive navbar on small screens */}
         <button
           className="navbar-toggler"
           type="button"
@@ -46,43 +38,34 @@ const Navbar = () => {
         >
           <span className="navbar-toggler-icon"></span>
         </button>
-
-        {/* Navbar Collapse Content */}
         <div className="collapse navbar-collapse" id="navbarNav">
           <ul className="navbar-nav me-auto mb-2 mb-lg-0">
             {isAuthenticated ? (
-              // Links for Authenticated Users (conditional on role)
               <>
-                {isFacultyOrAdmin ? ( // Faculty/Admin Specific Links
+                {isFacultyOrAdmin && (
                   <>
                     <li className="nav-item">
                       <Link className="nav-link" to="/faculty-dashboard">
-                        Faculty Dashboard
+                        Dashboard
                       </Link>
                     </li>
                     <li className="nav-item">
-                      <Link className="nav-link" to="/create-project">
-                        Create Project
+                      <Link className="nav-link" to="/my-projects">
+                        My Projects
                       </Link>
                     </li>
                     <li className="nav-item">
                       <Link className="nav-link" to="/submissions">
-                        View Submissions
+                        Submissions
                       </Link>
                     </li>
-                    {/* Add more faculty-specific links here, e.g., view rubrics for projects */}
                   </>
-                ) : isStudent ? (
-                  // Student Specific Links
+                )}
+                {isStudent && (
                   <>
                     <li className="nav-item">
                       <Link className="nav-link" to="/student-dashboard">
-                        Student Dashboard
-                      </Link>
-                    </li>
-                    <li className="nav-item">
-                      <Link className="nav-link" to="/submit-project">
-                        Submit Project
+                        Dashboard
                       </Link>
                     </li>
                     <li className="nav-item">
@@ -90,29 +73,21 @@ const Navbar = () => {
                         My Submissions
                       </Link>
                     </li>
-                    <li className="nav-item">
-                      <Link className="nav-link" to="/student-profile">
-                        Profile
-                      </Link>
-                    </li>
                   </>
-                ) : null}{" "}
-                {/* If role is not recognized, render nothing specific */}
-                {/* Common Protected Links */}
+                )}
                 <li className="nav-item">
                   <Link className="nav-link" to="/leaderboard">
                     Leaderboard
                   </Link>
                 </li>
-              </>
-            ) : (
-              // Links for Public/Unauthenticated Users
-              <>
                 <li className="nav-item">
-                  <Link className="nav-link" to="/">
-                    Home
+                  <Link className="nav-link" to={`/profile/${user?.username}`}>
+                    Profile
                   </Link>
                 </li>
+              </>
+            ) : (
+              <>
                 <li className="nav-item">
                   <Link className="nav-link" to="/login">
                     Login
@@ -126,29 +101,21 @@ const Navbar = () => {
               </>
             )}
           </ul>
-
-          {/* Right-aligned items: User Greeting, Theme Toggle, Sign Out */}
           <div className="d-flex align-items-center">
             {isAuthenticated && (
-              <span className="navbar-text me-3">
-                Hello, {user?.username}! ({user?.role})
-              </span>
+              <span className="navbar-text me-3">Hello, {user?.username}!</span>
             )}
-
-            {/* Theme Toggle Button using Bootstrap Icons */}
             <button
               className="theme-toggle-button"
               onClick={toggleTheme}
               aria-label="Toggle theme"
             >
               {theme === "light" ? (
-                <i className="bi bi-moon-fill"></i> // Moon icon for switching to dark theme
+                <i className="bi bi-moon-fill"></i>
               ) : (
-                <i className="bi bi-sun-fill"></i> // Sun icon for switching to light theme
+                <i className="bi bi-sun-fill"></i>
               )}
             </button>
-
-            {/* Sign Out Button (only visible when authenticated) */}
             {isAuthenticated && (
               <button className="btn btn-danger ms-3" onClick={handleSignOut}>
                 Sign Out

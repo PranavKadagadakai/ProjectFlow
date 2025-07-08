@@ -10,20 +10,25 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 
+// Shared Protected Pages
+import UserProfilePage from "./pages/UserProfilePage";
+import EditProfilePage from "./pages/EditProfilePage";
+
 // Student Pages
 import StudentDashboard from "./pages/StudentDashboard";
 import SubmitProjectPage from "./pages/SubmitProjectPage";
-import MySubmissionsPage from "./pages/MySubmissionsPage"; // New
+import MySubmissionsPage from "./pages/MySubmissionsPage";
 import ProjectResultsPage from "./pages/ProjectResultsPage";
-import StudentProfile from "./pages/StudentProfile"; // New
 
 // Faculty Pages
 import FacultyDashboard from "./pages/FacultyDashboard";
 import CreateProjectPage from "./pages/CreateProjectPage";
 import FacultySubmissionsView from "./pages/FacultySubmissionsView";
 import EvaluateSubmissionPage from "./pages/EvaluateSubmissionPage";
-import ProjectRubricsPage from "./pages/ProjectRubricsPage"; // Updated
-import CreateRubricPage from "./pages/CreateRubricPage"; // Updated
+import ProjectRubricsPage from "./pages/ProjectRubricsPage";
+import CreateRubricPage from "./pages/CreateRubricPage";
+import FacultyProjectsPage from "./pages/FacultyProjectsPage";
+import EditProjectPage from "./pages/EditProjectPage";
 
 function App() {
   const { loading } = useAuth();
@@ -47,10 +52,15 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
 
+          {/* Shared Protected Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/profile/:username" element={<UserProfilePage />} />
+            <Route path="/profile/edit" element={<EditProfilePage />} />
+          </Route>
+
           {/* Student Routes */}
           <Route element={<ProtectedRoute role="student" />}>
             <Route path="/student-dashboard" element={<StudentDashboard />} />
-            <Route path="/student-profile" element={<StudentProfile />} />
             <Route path="/submit-project" element={<SubmitProjectPage />} />
             <Route path="/my-submissions" element={<MySubmissionsPage />} />
             <Route
@@ -62,7 +72,12 @@ function App() {
           {/* Faculty Routes */}
           <Route element={<ProtectedRoute role="faculty" />}>
             <Route path="/faculty-dashboard" element={<FacultyDashboard />} />
+            <Route path="/my-projects" element={<FacultyProjectsPage />} />
             <Route path="/create-project" element={<CreateProjectPage />} />
+            <Route
+              path="/edit-project/:projectId"
+              element={<EditProjectPage />}
+            />
             <Route path="/submissions" element={<FacultySubmissionsView />} />
             <Route
               path="/evaluate/:submissionId"

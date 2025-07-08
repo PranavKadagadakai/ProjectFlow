@@ -11,7 +11,7 @@ django.setup()
 
 # Now we can import our models and other necessary components
 from pynamodb.indexes import GlobalSecondaryIndex
-from Proj.models import ProjectModel, SubmissionModel, RubricModel, EvaluationModel
+from Proj.models import ProjectModel, SubmissionModel, RubricModel, EvaluationModel, UserProfileModel
 
 def create_all_tables():
     """
@@ -20,7 +20,7 @@ def create_all_tables():
     with the required indexes as defined in the PynamoDB model class.
     """
     # List of all PynamoDB models to be created
-    models_to_create = [ProjectModel, SubmissionModel, RubricModel, EvaluationModel]
+    models_to_create = [ProjectModel, SubmissionModel, RubricModel, EvaluationModel, UserProfileModel]
 
     for model in models_to_create:
         table_name = model.Meta.table_name

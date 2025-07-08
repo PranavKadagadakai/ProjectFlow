@@ -229,6 +229,7 @@ DYNAMODB_PROJECTS_TABLE = os.getenv('DYNAMODB_PROJECTS_TABLE', 'ProjectFlow_Proj
 DYNAMODB_SUBMISSIONS_TABLE = os.getenv('DYNAMODB_SUBMISSIONS_TABLE', 'ProjectFlow_Submissions')
 DYNAMODB_RUBRICS_TABLE = os.getenv('DYNAMODB_RUBRICS_TABLE', 'ProjectFlow_Rubrics')
 DYNAMODB_EVALUATIONS_TABLE = os.getenv('DYNAMODB_EVALUATIONS_TABLE', 'ProjectFlow_Evaluations')
+DYNAMODB_USER_PROFILES_TABLE = os.getenv('DYNAMODB_USER_PROFILES_TABLE', 'ProjectFlow_UserProfiles')
 
 # Cache settings (for Leaderboard view)
 # Using a simple LocMemCache for development. For production, consider Redis/Memcached.
