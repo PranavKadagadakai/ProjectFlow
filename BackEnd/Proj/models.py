@@ -86,10 +86,13 @@ class SubmissionModel(Model):
     submission_id = UnicodeAttribute(hash_key=True, default=lambda: str(uuid4()))
     project_id = UnicodeAttribute()
     student_username = UnicodeAttribute()
+    title = UnicodeAttribute() # Student's specific title for this submission
     report_file_s3_key = UnicodeAttribute(null=True)
     report_content_summary = UnicodeAttribute(null=True) # For ML model
     github_link = UnicodeAttribute(null=True)
     youtube_link = UnicodeAttribute(null=True)
+    # NEW: Field for source code zip file
+    source_code_file_s3_key = UnicodeAttribute(null=True)
     submitted_at = UTCDateTimeAttribute(default=datetime.utcnow)
     status = UnicodeAttribute(default='Submitted') # e.g., 'Submitted', 'Under Evaluation', 'Evaluated'
     

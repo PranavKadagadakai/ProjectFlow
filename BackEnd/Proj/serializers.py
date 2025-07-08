@@ -56,10 +56,12 @@ class SubmissionSerializer(serializers.Serializer):
     submission_id = serializers.CharField(read_only=True)
     project_id = serializers.CharField()
     student_username = serializers.CharField(read_only=True)
-    report_file_s3_key = serializers.CharField(read_only=True, required=False)
+    title = serializers.CharField(max_length=255) # Student's specific title for this submission
+    report_file_s3_key = serializers.CharField(required=False, allow_blank=True, allow_null=True) # Made writable
     report_content_summary = serializers.CharField(required=False, allow_blank=True)
     github_link = serializers.URLField(required=False, allow_blank=True, allow_null=True)
     youtube_link = serializers.URLField(required=False, allow_blank=True, allow_null=True)
+    source_code_file_s3_key = serializers.CharField(required=False, allow_blank=True, allow_null=True) # NEW FIELD
     submitted_at = serializers.DateTimeField(read_only=True)
     status = serializers.CharField(read_only=True)
     manual_score = serializers.FloatField(read_only=True, required=False)

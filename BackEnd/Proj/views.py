@@ -11,8 +11,8 @@ from .serializers import (
     ProjectSerializer, SubmissionSerializer, RubricSerializer, EvaluationSerializer, UserProfileSerializer
 )
 from .utils import send_email_ses
-# UPDATED: Import the new Gemini-based evaluator
 from ml_evaluator.evaluator import get_ai_evaluation
+from Proj.pdf_extractor import extract_text_from_s3_pdf # NEW IMPORT
 
 # --- Helper Functions ---
 def get_submission_and_check_permission(submission_id, request):
@@ -126,6 +126,15 @@ class SubmissionListCreateView(APIView):
         if project.end_date < date.today():
             raise ValidationError("The submission deadline for this project has passed. No more submissions are allowed.")
 
+        # NEW VALIDATION: At least one of github_link or source_code_file_s3_key must be provided
+        github_link = serializer.validated_data.get('github_link')
+        source_code_file_s3_key = serializer.validated_data.get('source_code_file_s3_key')
+
+        if not github_link and not source_code_file_s3_key:
+            raise ValidationError("Either a GitHub link or a source code ZIP file must be provided.")
+        if github_link and source_code_file_s3_key:
+            raise ValidationError("Cannot provide both a GitHub link and a source code ZIP file. Please choose one.")
+
         existing_submissions = list(SubmissionModel.project_student_index.query(
             hash_key=project_id,
             range_key_condition=SubmissionModel.student_username == request.user.username
@@ -146,6 +155,25 @@ class SubmissionListCreateView(APIView):
             version=submission_version,
             is_latest=True
         )
+
+        # NEW: Extract text from PDF report and save it to the submission
+        if submission.report_file_s3_key:
+            extracted_text = extract_text_from_s3_pdf(submission.report_file_s3_key)
+            if extracted_text:
+                submission.update(actions=[
+                    SubmissionModel.report_content_summary.set(extracted_text)
+                ])
+                # Refresh the submission object to get the updated summary
+                submission = SubmissionModel.get(submission.submission_id)
+            else:
+                # Log an error if PDF extraction fails but don't block submission
+                print(f"WARNING: Could not extract text from PDF for submission {submission.submission_id}")
+                # Optionally set a placeholder or error message in the summary field
+                submission.update(actions=[
+                    SubmissionModel.report_content_summary.set("PDF text extraction failed or resulted in empty content.")
+                ])
+                submission = SubmissionModel.get(submission.submission_id) # Refresh
+
         
         if settings.AWS_SES_SOURCE_EMAIL and request.user.email:
             send_email_ses(
@@ -297,9 +325,10 @@ class TriggerAIEvaluationView(APIView):
 
         submission = get_submission_and_check_permission(submission_id, request)
         
+        # Ensure report_content_summary is available (extracted from PDF)
         if not submission.report_content_summary:
             return Response(
-                {"detail": "Submission has no text content to analyze."},
+                {"detail": "Submission has no text content to analyze. PDF extraction might have failed or not completed."},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -344,13 +373,21 @@ class FinalizeEvaluationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        ml_results = get_ai_evaluation(submission.report_content_summary or "", rubrics)
+        # Ensure report_content_summary is available (extracted from PDF)
+        if not submission.report_content_summary:
+            return Response(
+                {"detail": "Cannot finalize. Submission has no text content for AI evaluation. PDF extraction might have failed or not completed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        ml_results = get_ai_evaluation(submission.report_content_summary, rubrics)
         
         if "error" in ml_results:
             return Response({"detail": ml_results["error"]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # Extract only the scores from the structured AI response
-        total_ml_score = sum(v for k, v in ml_results.items() if k.endswith('_score'))
+        # Note: ml_results is a dictionary where keys end with '_score' or '_feedback'
+        total_ml_score = sum(v['value'] for k, v in ml_results.items() if k.endswith('_score') and isinstance(v, dict) and 'value' in v and isinstance(v['value'], (int, float)))
 
         weight = settings.ML_SCORE_WEIGHT
         final_score = (total_manual_score * (1 - weight)) + (total_ml_score * weight)

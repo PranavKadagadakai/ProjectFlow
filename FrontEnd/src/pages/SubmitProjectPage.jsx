@@ -1,20 +1,27 @@
-// FrontEnd/src/pages/SubmitProjectPage.jsx
 import React, { useState, useEffect } from "react";
 import api from "../api/api";
 import { useNavigate } from "react-router-dom";
+import { uploadData } from "aws-amplify/storage"; // For S3 uploads
+import useAuth from "../hooks/useAuth"; // To get user details for S3 path
 
 const SubmitProjectPage = () => {
+  const { user, isAuthenticated } = useAuth(); // Assuming user has 'username'
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     project_id: "",
-    report_content_summary: "",
+    title: "", // Student's submission title
+    report_content_summary: "", // Text summary for AI evaluation
     github_link: "",
     youtube_link: "",
   });
+
+  const [projectReportFile, setProjectReportFile] = useState(null); // For PDF upload
+  const [sourceCodeFile, setSourceCodeFile] = useState(null); // For ZIP upload
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -34,11 +41,22 @@ const SubmitProjectPage = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleFileChange = (e, setFileState) => {
+    setFileState(e.target.files[0]);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage("");
     setIsError(false);
+
+    if (!isAuthenticated || !user) {
+      setMessage("You must be logged in to submit a project.");
+      setIsError(true);
+      setLoading(false);
+      return;
+    }
 
     if (!formData.project_id) {
       setMessage("Please select a project.");
@@ -47,13 +65,98 @@ const SubmitProjectPage = () => {
       return;
     }
 
+    // Validation for GitHub link vs. Source Code File
+    if (!formData.github_link && !sourceCodeFile) {
+      setMessage(
+        "Please provide either a GitHub link or upload a source code ZIP file."
+      );
+      setIsError(true);
+      setLoading(false);
+      return;
+    }
+    if (formData.github_link && sourceCodeFile) {
+      setMessage(
+        "Please provide EITHER a GitHub link OR a source code ZIP file, not both."
+      );
+      setIsError(true);
+      setLoading(false);
+      return;
+    }
+
+    let reportFileS3Key = null;
+    let sourceCodeFileS3Key = null;
+
     try {
-      await api.post("/api/submissions/", formData);
+      // 1. Upload Project Report (PDF) to S3
+      if (projectReportFile) {
+        const reportFileName = `reports/${user.username}/${Date.now()}-${
+          projectReportFile.name
+        }`;
+        const result = await uploadData({
+          path: reportFileName,
+          data: projectReportFile,
+          options: {
+            contentType: projectReportFile.type,
+          },
+        }).result;
+        reportFileS3Key = result.path; // S3 key
+        console.log("Project report uploaded:", reportFileS3Key);
+      }
+
+      // 2. Upload Source Code (ZIP) to S3
+      if (sourceCodeFile) {
+        const sourceCodeFileName = `source-code/${
+          user.username
+        }/${Date.now()}-${sourceCodeFile.name}`;
+        const result = await uploadData({
+          path: sourceCodeFileName,
+          data: sourceCodeFile,
+          options: {
+            contentType: sourceCodeFile.type,
+          },
+        }).result;
+        sourceCodeFileS3Key = result.path; // S3 key
+        console.log("Source code uploaded:", sourceCodeFileS3Key);
+      }
+
+      // 3. Prepare data for Django Backend
+      const submissionData = {
+        project_id: formData.project_id,
+        title: formData.title, // Student's specific title for this submission
+        report_content_summary: formData.report_content_summary,
+        report_file_s3_key: reportFileS3Key, // Pass S3 key if file was uploaded
+        github_link: formData.github_link || null, // Pass null if empty
+        source_code_file_s3_key: sourceCodeFileS3Key, // Pass S3 key if file was uploaded
+        youtube_link: formData.youtube_link || null, // Pass null if empty
+      };
+
+      const response = await api.post("/api/submissions/", submissionData);
       setMessage("Project submitted successfully! Redirecting...");
+      console.log("Django API response:", response.data);
+
+      // Clear form
+      setFormData({
+        project_id: "",
+        title: "",
+        report_content_summary: "",
+        github_link: "",
+        youtube_link: "",
+      });
+      setProjectReportFile(null);
+      setSourceCodeFile(null);
+      // Clear file inputs visually
+      document.getElementById("projectReportFile").value = "";
+      document.getElementById("sourceCodeFile").value = "";
+
       setTimeout(() => navigate("/my-submissions"), 2000);
     } catch (error) {
+      console.error("Submission error:", error);
       setIsError(true);
-      setMessage(error.response?.data?.detail || "Failed to submit project.");
+      setMessage(
+        error.response?.data?.detail ||
+          error.message ||
+          "Failed to submit project."
+      );
     } finally {
       setLoading(false);
     }
@@ -87,10 +190,48 @@ const SubmitProjectPage = () => {
               </option>
             ))}
           </select>
+          {projects.length === 0 && !loading && (
+            <p className="text-muted mt-2">
+              No active projects available for submission.
+            </p>
+          )}
         </div>
+
+        <div className="mb-3">
+          <label htmlFor="title" className="form-label">
+            Submission Title
+          </label>
+          <input
+            type="text"
+            className="form-control"
+            id="title"
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+            required
+            placeholder="e.g., My Innovative Project for Course X"
+          />
+        </div>
+
+        <div className="mb-3">
+          <label htmlFor="projectReportFile" className="form-label">
+            Project Report (PDF)
+          </label>
+          <input
+            type="file"
+            className="form-control"
+            id="projectReportFile"
+            accept=".pdf"
+            onChange={(e) => handleFileChange(e, setProjectReportFile)}
+          />
+          <div className="form-text">
+            Upload your detailed project report as a PDF.
+          </div>
+        </div>
+
         <div className="mb-3">
           <label htmlFor="report_content_summary" className="form-label">
-            Project Report/Summary
+            Project Report Summary (for AI Evaluation)
           </label>
           <textarea
             className="form-control"
@@ -100,16 +241,18 @@ const SubmitProjectPage = () => {
             value={formData.report_content_summary}
             onChange={handleChange}
             required
-            placeholder="Paste the text of your project report or a detailed summary here. This content will be analyzed by the automated evaluation model."
+            placeholder="Paste a detailed summary of your project report here. This text will be analyzed by the automated evaluation model."
           ></textarea>
           <div className="form-text">
-            Note: File uploads are handled via S3 and not implemented in this
-            simplified form. This text area serves for the ML simulation.
+            Provide a comprehensive summary (min 200 words recommended) of your
+            project, including objectives, methodology, results, and
+            conclusions.
           </div>
         </div>
+
         <div className="mb-3">
           <label htmlFor="github_link" className="form-label">
-            GitHub Repository Link
+            GitHub Repository Link (Optional)
           </label>
           <input
             type="url"
@@ -118,12 +261,38 @@ const SubmitProjectPage = () => {
             name="github_link"
             value={formData.github_link}
             onChange={handleChange}
-            placeholder="https://github.com/user/repo"
+            placeholder="https://github.com/your-username/your-repo"
+            disabled={!!sourceCodeFile} // Disable if source code file is selected
           />
+          <div className="form-text">
+            Provide a link to your public GitHub repository.
+          </div>
         </div>
+
+        <div className="mb-3 text-center">
+          <span className="text-muted">OR</span>
+        </div>
+
+        <div className="mb-3">
+          <label htmlFor="sourceCodeFile" className="form-label">
+            Upload Project Source Code (ZIP) (Optional)
+          </label>
+          <input
+            type="file"
+            className="form-control"
+            id="sourceCodeFile"
+            accept=".zip"
+            onChange={(e) => handleFileChange(e, setSourceCodeFile)}
+            disabled={!!formData.github_link} // Disable if GitHub link is provided
+          />
+          <div className="form-text">
+            Upload your project's source code as a .zip file.
+          </div>
+        </div>
+
         <div className="mb-3">
           <label htmlFor="youtube_link" className="form-label">
-            YouTube Demo Link
+            YouTube Demo Video Link (Optional)
           </label>
           <input
             type="url"
@@ -134,11 +303,15 @@ const SubmitProjectPage = () => {
             onChange={handleChange}
             placeholder="https://youtube.com/watch?v=..."
           />
+          <div className="form-text">
+            Provide a link to a demo video of your project.
+          </div>
         </div>
+
         <button
           type="submit"
           className="btn btn-primary w-100"
-          disabled={loading}
+          disabled={loading || (!formData.github_link && !sourceCodeFile)}
         >
           {loading ? "Submitting..." : "Submit Project"}
         </button>
