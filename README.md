@@ -1,47 +1,88 @@
-# Project Submission Portal with ML-Based Automated Evaluation
+# Project Submission Portal — ML‑Assisted Evaluation
 
-This repository contains the full-stack code for a cloud-native web application designed to facilitate the submission, evaluation, and recognition of academic projects. It features a Python/Django backend integrated with AWS services, a React.js frontend, and a simulated ML model for automated scoring assistance.
+A full‑stack web application that streamlines how students **submit** academic projects and how faculty **evaluate** them, with help from an AI text‑analysis component.
 
-## Table of Contents
+| Layer      | Technology                                                                                |
+|------------|-------------------------------------------------------------------------------------------|
+| **Backend**| Python · Django 5 · Django REST Framework · PynamoDB (AWS DynamoDB) · Google Gemini (AI)    |
+| **Frontend**| React (Vite) · Bootstrap · Axios                                                          |
+| **Auth**   | AWS Cognito (JWT) → *Session + OAuth2 branch in progress*                                  |
+| **Storage**| Local FileSystem (default) ➜ optional AWS S3                                              |
+| **Infra**  | AWS SES (email) · SNS (critical‑error alerts) · DynamoDB tables auto‑provisioned           |
 
-- [Project Overview](#project-overview)
-- [Features](#features)
-- [Technology Stack](#technology-stack)
-- [Directory Structure](#directory-structure)
-- [Prerequisites](#prerequisites)
-- [Setup Instructions](#setup-instructions)
-- [Running the Application](#running-the-application)
-- [API Endpoints](#api-endpoints)
+> **New in v0.6 (2025‑07‑09)** — default file handling has been switched to **local storage** because of an S3 outage.
+> S3 variables are still present but commented out so you can turn them back on later.
 
-## Project Overview
+---
 
-The portal allows students to submit project reports and artifacts (like GitHub repositories or video demo). Faculty can then evaluate these submissions both manually and with the assistance of an ML-based automated scoring system. The system includes secure authentication, role-based access, scalable data storage, and a real-time leaderboard that reflects a weighted combination of manual and automated scores.
+### Contents
+1. [Features](#features)
+2. [Quick Start](#quick-start)
+3. [Local Dev Workflow](#local-dev-workflow)
+4. [Environment Variables](#environment-variables)
+5. [Architecture Diagram](#architecture-diagram)
+6. [REST API Glance](#rest-api-glance)
 
-## Features
+### Features
+* **Student / Faculty dashboards** with role‑based routes.
+* **Project & Rubric builder** — faculty define criteria, weights, deadlines.
+* Up to **3 resubmissions** per student, version‑tracked.
+* PDF **text extraction** → AI rubric‑aligned auto‑scoring (Gemini 1.5 Flash).
+* **Weighted final score** = `manual*(1‑w) + AI*w` (w from `.env`, default 0.30).
+* **Real‑time leaderboard** and email notifications (SES).
+* **Error tracker** posts critical logs to an SNS topic.
+* **Light/Dark mode** preserved in localStorage.
 
-- **User Authentication**: Secure user registration and login via AWS Cognito, with multi-factor authentication support.
-- **Role-Based Access**: Distinct interfaces and permissions for Students and Faculty/Administrators.
-- **Project & Rubric Management**: Faculty can create projects, set submission deadlines, and define detailed evaluation rubrics for each project.
-- **Project Submission**: Students can upload project files (PDF, DOCX) and link to external artifacts (GitHub, YouTube), with deadline enforcement.
-- **Faculty Evaluation**: A comprehensive interface for faculty to view submissions, provide scores based on rubrics, and write detailed feedback.
-- **Automated Evaluation**: An integrated ML model simulation analyzes submission content to provide automated scores for **quality**, **innovation**, and **impact**, assisting faculty in the evaluation process.
-- **Combined Scoring**: The final score for a submission is a weighted average of the manual faculty score and the automated ML score.
-- **Dynamic Leaderboard**: Displays real-time project rankings based on the final combined scores.
-- **Theming**: A user-toggleable light/dark theme for improved usability.
-- **Email Notifications**: Automated email confirmations for submissions and evaluation completions using AWS SES.
+### Quick Start
+```bash
+# Linux / macOS
+./setup.sh
+# Windows (PowerShell)
+.\setup.ps1
+# Windows (CMD)
+setup.bat
+```
 
-## Technology Stack
+### Local Dev Workflow
+1. **Backend**
+   ```bash
+   cd BackEnd && source .venv/bin/activate
+   python manage.py runserver
+   ```
+2. **Frontend**
+   ```bash
+   cd FrontEnd
+   npm run dev
+   ```
+3. App runs at **http://localhost:5173** (proxying API to `127.0.0.1:8000`).
 
-| Component          | Technology/Service                    | Notes                                        |
-| :----------------- | :------------------------------------ | :------------------------------------------- |
-| **Backend**        | Python, Django, Django REST Framework | API Server                                   |
-| **Frontend**       | React.js, Vite, Bootstrap, Axios      | Single-Page Application                      |
-| **Database**       | AWS DynamoDB (managed with PynamoDB)  | NoSQL, serverless data storage               |
-| **Authentication** | AWS Cognito                           | Managed user pools                           |
-| **File Storage**   | AWS S3                                | For project reports and other media uploads  |
-| **Email Service**  | AWS SES                               | For automated notifications                  |
-| **ML Simulation**  | Python, NLTK                          | Simulates NLP-based evaluation within Django |
+### Environment Variables
+| Key | Default | Purpose |
+|-----|---------|---------|
+| `USE_LOCAL_FILE_STORAGE` | `true` | If `false`, Django uses S3 storage backend. |
+| `MEDIA_ROOT` | `<repo>/BackEnd/media/` | Where uploaded files are stored locally. |
+| `ML_SCORE_WEIGHT` | `0.30` | Weight of AI score in final grade. |
+| *AWS keys* | *(commented)* | Uncomment to re‑enable Cognito / S3 / SES. |
 
-## Directory Structure
+### Architecture Diagram
+```text
+React UI  ⇄  DRF API  ⇄  DynamoDB
+            ↳ local FileSystem (PDFs, ZIPs)
+            ↳ Gemini AI (auto‑score)
+            ↳ SES / SNS (emails, alerts)
+```
 
-The project is organized into `BackEnd` and `FrontEnd` directories, with the backend now including a dedicated `ml_evaluator` app.
+### REST API Glance (URLs start with `/api/`)
+* `projects/`, `projects/<id>/`
+* `submissions/`, `submissions/<id>/`
+* `projects/<id>/rubrics/`
+* `submissions/<id>/evaluations/`
+* `submissions/<id>/trigger_ai_evaluation/`
+* `leaderboard/`
+* `profiles/<username>/`
+
+See the backend `Proj/urls.py` for the authoritative map.
+
+---
+
+© 2025 Project Flow Team. Licensed under MIT.

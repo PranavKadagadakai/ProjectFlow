@@ -26,15 +26,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'corsheaders',
+    'corsheaders', # Ensure 'corsheaders' is listed here
     'rest_framework',
-    # 'storages', # IMPORTANT: Commented out as we are not using S3
     'Proj',
     'ml_evaluator',
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware', # Ensure 'corsheaders.middleware.CorsMiddleware' is here
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -49,7 +48,10 @@ ROOT_URLCONF = 'ProjectFlow.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'templates'),
+            os.path.join(BASE_DIR, 'static', 'frontend_build'),
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -86,7 +88,13 @@ USE_I18N = True
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static', 'frontend_build'),
+]
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 ## MANUAL SETTINGS
@@ -100,7 +108,8 @@ REST_FRAMEWORK = {
     ],
 }
 
-CORS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+# CORS settings: Removed '[http://127.0.0.1:5173](http://127.0.0.1:5173)'
+CORS_ALLOWED_ORIGINS = ["http://localhost:5173"] # Only keep localhost
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = ['accept', 'authorization', 'content-type', 'user-agent', 'x-csrftoken', 'x-requested-with']
 
@@ -114,9 +123,6 @@ AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 
 # --- LOCAL FILE STORAGE CONFIGURATION ---
-# The default file storage is now Django's FileSystemStorage.
-# MEDIA_URL is the public URL for the media directory.
-# MEDIA_ROOT is the absolute filesystem path to the directory for user-uploaded files.
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 

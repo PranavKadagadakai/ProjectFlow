@@ -21,6 +21,6 @@ tmp
 #Database files
 db.sqlite3
 # Media files
-media/
+/media/
 
 pranavkadagadakai-projectflow.txt
