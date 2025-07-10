@@ -330,7 +330,7 @@ class FinalizeEvaluationView(APIView):
         }, status=status.HTTP_200_OK)
 
 class LeaderboardView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     def get(self, request):
         try:
             all_submissions = list(SubmissionModel.scan(
