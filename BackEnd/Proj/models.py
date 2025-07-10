@@ -22,12 +22,19 @@ class ISODateAttribute(UnicodeAttribute):
         return datetime.strptime(value, '%Y-%m-%d').date()
 
 class BaseMeta:
+    # Common Meta attributes for all PynamoDB models
     region = settings.DYNAMODB_REGION
     aws_access_key_id = settings.AWS_ACCESS_KEY_ID
     aws_secret_access_key = settings.AWS_SECRET_ACCESS_KEY
+    # You can set default read/write capacity here for the main table,
+    # but GSIs need their own explicit settings.
+    read_capacity_units = 1
+    write_capacity_units = 1
+
 
 class UserProfileModel(Model):
-    class Meta(BaseMeta): table_name = settings.DYNAMODB_USER_PROFILES_TABLE
+    class Meta(BaseMeta):
+        table_name = settings.DYNAMODB_USER_PROFILES_TABLE
     username = UnicodeAttribute(hash_key=True)
     full_name = UnicodeAttribute(null=True)
     bio = UnicodeAttribute(null=True)
@@ -35,7 +42,8 @@ class UserProfileModel(Model):
     updated_at = UTCDateTimeAttribute(default=datetime.utcnow)
 
 class ProjectModel(Model):
-    class Meta(BaseMeta): table_name = settings.DYNAMODB_PROJECTS_TABLE
+    class Meta(BaseMeta):
+        table_name = settings.DYNAMODB_PROJECTS_TABLE
     project_id = UnicodeAttribute(hash_key=True, default=lambda: str(uuid4()))
     title = UnicodeAttribute()
     description = UnicodeAttribute()
@@ -47,17 +55,26 @@ class ProjectModel(Model):
     updated_at = UTCDateTimeAttribute(default=datetime.utcnow)
 
 class SubmissionModel(Model):
-    class Meta(BaseMeta): table_name = settings.DYNAMODB_SUBMISSIONS_TABLE
+    class Meta(BaseMeta):
+        table_name = settings.DYNAMODB_SUBMISSIONS_TABLE
+
     class ProjectStudentIndex(GlobalSecondaryIndex):
-        class Meta(BaseMeta):
+        class Meta(BaseMeta): # Inherit BaseMeta for region and credentials
             index_name = 'project_student_index'
             projection = AllProjection()
+            # FIX: Explicitly define provisioned throughput for the GSI
+            read_capacity_units = 1
+            write_capacity_units = 1
         project_id = UnicodeAttribute(hash_key=True)
         student_username = UnicodeAttribute(range_key=True)
+
     class StudentIndex(GlobalSecondaryIndex):
-        class Meta(BaseMeta):
+        class Meta(BaseMeta): # Inherit BaseMeta for region and credentials
             index_name = 'student_index'
             projection = AllProjection()
+            # FIX: Explicitly define provisioned throughput for the GSI
+            read_capacity_units = 1
+            write_capacity_units = 1
         student_username = UnicodeAttribute(hash_key=True)
         submitted_at = UTCDateTimeAttribute(range_key=True)
 
@@ -66,12 +83,10 @@ class SubmissionModel(Model):
     student_username = UnicodeAttribute()
     title = UnicodeAttribute()
     
-    # RENAMED: from report_file_s3_key to report_file_path to reflect local storage
     report_file_path = UnicodeAttribute(null=True)
     report_content_summary = UnicodeAttribute(null=True)
     github_link = UnicodeAttribute(null=True)
     
-    # RENAMED: from source_code_file_s3_key to source_code_file_path
     source_code_file_path = UnicodeAttribute(null=True)
     
     submitted_at = UTCDateTimeAttribute(default=datetime.utcnow)
@@ -81,29 +96,41 @@ class SubmissionModel(Model):
     manual_score = NumberAttribute(null=True)
     ml_score = NumberAttribute(null=True)
     overall_score = NumberAttribute(null=True)
+
+    # Associate the indexes with the model
     project_student_index = ProjectStudentIndex()
     student_index = StudentIndex()
 
 class RubricModel(Model):
-    class Meta(BaseMeta): table_name = settings.DYNAMODB_RUBRICS_TABLE
+    class Meta(BaseMeta):
+        table_name = settings.DYNAMODB_RUBRICS_TABLE
+
     class ProjectIndex(GlobalSecondaryIndex):
-        class Meta(BaseMeta):
+        class Meta(BaseMeta): # Inherit BaseMeta for region and credentials
             index_name = 'project_index'
             projection = AllProjection()
+            # FIX: Explicitly define provisioned throughput for the GSI
+            read_capacity_units = 1
+            write_capacity_units = 1
         project_id = UnicodeAttribute(hash_key=True)
     rubric_id = UnicodeAttribute(hash_key=True, default=lambda: str(uuid4()))
     project_id = UnicodeAttribute()
     criterion = UnicodeAttribute()
     max_points = NumberAttribute()
     description = UnicodeAttribute(null=True)
-    project_index = ProjectIndex()
+    project_index = ProjectIndex() # Associate the index
 
 class EvaluationModel(Model):
-    class Meta(BaseMeta): table_name = settings.DYNAMODB_EVALUATIONS_TABLE
+    class Meta(BaseMeta):
+        table_name = settings.DYNAMODB_EVALUATIONS_TABLE
+
     class SubmissionIndex(GlobalSecondaryIndex):
-        class Meta(BaseMeta):
+        class Meta(BaseMeta): # Inherit BaseMeta for region and credentials
             index_name = 'submission_index'
             projection = AllProjection()
+            # FIX: Explicitly define provisioned throughput for the GSI
+            read_capacity_units = 1
+            write_capacity_units = 1
         submission_id = UnicodeAttribute(hash_key=True)
     evaluation_id = UnicodeAttribute(hash_key=True, default=lambda: str(uuid4()))
     submission_id = UnicodeAttribute()
@@ -114,4 +141,4 @@ class EvaluationModel(Model):
     evaluated_at = UTCDateTimeAttribute(default=datetime.utcnow)
     ml_points_awarded = NumberAttribute(null=True)
     ml_feedback = UnicodeAttribute(null=True)
-    submission_index = SubmissionIndex()
+    submission_index = SubmissionIndex() # Associate the index

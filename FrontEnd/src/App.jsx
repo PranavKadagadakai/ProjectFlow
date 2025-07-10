@@ -44,7 +44,10 @@ function App() {
   return (
     <>
       <Navbar />
-      <div className="container mt-4">
+      {/* This div will now handle centering of the content */}
+      <div className="content-wrapper">
+        {" "}
+        {/* Using the existing content-wrapper class */}
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
